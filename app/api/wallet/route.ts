@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
-import { profileSchema } from "@/lib/validators";
+import { walletAddressSchema } from "@/lib/validators";
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -12,25 +12,23 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => null);
-  const parsed = profileSchema.safeParse(body);
+  const parsed = walletAddressSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid profile." }, { status: 400 });
+    return NextResponse.json({ error: "Enter a valid wallet address." }, { status: 400 });
   }
 
   await prisma.user.update({
     where: { id: session.user.id },
-    data: {
-      name: parsed.data.name,
-      walletAddress: parsed.data.walletAddress?.trim() || null,
-    },
+    data: { walletAddress: parsed.data.address },
   });
 
   await writeAudit({
     actorId: session.user.id,
-    action: "UPDATE_PROFILE",
+    action: "WALLET_CONNECTED",
     entity: "User",
     entityId: session.user.id,
+    meta: { walletAddress: parsed.data.address },
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, address: parsed.data.address });
 }

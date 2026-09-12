@@ -40,8 +40,9 @@ export function TreasuryTopupForm() {
     <GlassCard>
       <h3 className="font-display text-2xl">Add funds</h3>
       <p className="mt-2 text-sm text-muted">
-        Top up the company payout pool. This is a ledger credit only — no chain
-        transfer. Member withdrawals debit this balance immediately.
+        Top up the company payout pool. This is a ledger credit only — it does
+        not move on-chain USDT. Fund the hot wallet separately. Member
+        withdrawals debit this balance immediately.
       </p>
       <form onSubmit={onSubmit} className="mt-4 space-y-3">
         <label className="block text-sm">

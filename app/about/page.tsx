@@ -12,7 +12,7 @@ export default function AboutPage() {
         <SectionHeading
           kicker="House"
           title="Mission & vision"
-          lede="Whealth Grid Fx AI is built as a premium desk — not a generic yield brochure. Phase 1 is the control plane: identity, packages, wallets, ranks, treasury payouts, and an admin deposit queue."
+          lede="Whealth Grid Fx AI is built as a premium desk — not a generic yield brochure. The control plane covers identity, packages, wallets, ranks, treasury payouts, wallet connect, and company-wallet USDT rails."
         />
         <div className="mt-10 grid gap-6 md:grid-cols-2">
           <GlassCard>
@@ -28,9 +28,9 @@ export default function AboutPage() {
             <h2 className="font-display text-3xl gold-text">Vision</h2>
             <p className="mt-4 text-sm leading-relaxed text-muted">
               A trading-desk atmosphere where AI grid allocation, rank gifts, and
-              DEX settlement feel like one instrument panel. Later phases connect
-              wallets on-chain. Lifetime business data stays in this application
-              database.
+              on-chain USDT settlement feel like one instrument panel. Members
+              connect wallets for deposits and payouts. Lifetime business data
+              stays in this application database.
             </p>
           </GlassCard>
         </div>
@@ -38,7 +38,7 @@ export default function AboutPage() {
           <h3 className="font-display text-2xl">What Phase 1 is — and is not</h3>
           <ul className="mt-4 space-y-2 text-sm text-muted">
             <li>Is: marketing site, member desk, admin desk, Prisma lifetime records.</li>
-            <li>Is not: live order routing, guaranteed daily income, or on-chain settlement.</li>
+            <li>Is not: live order routing or guaranteed daily income. On-chain USDT send is optional and env-gated.</li>
             <li>Spelling is intentional: Whealth, not Wealth.</li>
           </ul>
         </GlassCard>

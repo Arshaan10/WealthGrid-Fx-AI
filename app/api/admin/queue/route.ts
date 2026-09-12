@@ -36,7 +36,9 @@ export async function POST(request: Request) {
         type: row.walletType as WalletType,
         amount: row.amount,
         category: "DEPOSIT",
-        description: "Admin approved DEX placeholder deposit",
+        description: row.txHint
+          ? `Admin approved USDT deposit ${row.txHint}`
+          : "Admin approved member deposit intent",
         refId: row.id,
       });
     }

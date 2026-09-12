@@ -87,6 +87,13 @@ export async function executeAutoWithdrawal(input: {
       actorId: input.userId,
     });
 
+    if (input.toAddress) {
+      await tx.user.update({
+        where: { id: input.userId },
+        data: { walletAddress: input.toAddress },
+      });
+    }
+
     await tx.auditLog.create({
       data: {
         actorId: input.userId,
@@ -98,6 +105,7 @@ export async function executeAutoWithdrawal(input: {
           fee: quote.fee.toString(),
           net: quote.net.toString(),
           walletType: input.type,
+          toAddress: input.toAddress ?? null,
         }),
       },
     });

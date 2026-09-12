@@ -4,17 +4,20 @@ import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GlassCard } from "@/components/brand/GlassCard";
 import { GoldButton } from "@/components/brand/GoldButton";
-import { DexPlaceholder } from "@/components/desk/DexPlaceholder";
+import { WalletConnectButton } from "@/components/desk/WalletConnectButton";
+import type { PublicChainConfig } from "@/lib/chain";
 import { formatUsd } from "@/lib/utils";
 
 export function WithdrawForm({
   wallets,
   defaultAddress,
   feePct,
+  chain,
 }: {
   wallets: { type: string; available: number }[];
   defaultAddress: string;
   feePct: number;
+  chain: PublicChainConfig;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -50,9 +53,16 @@ export function WithdrawForm({
       setError(data.error ?? "Could not complete withdrawal");
       return;
     }
-    setOk(
-      `Withdrawn ${formatUsd(data.amount)}. Fee ${formatUsd(data.fee)}. Net payout ${formatUsd(data.net)} booked from treasury.`,
-    );
+    const booked = `Withdrawn ${formatUsd(data.amount)}. Fee ${formatUsd(data.fee)}. Net ${formatUsd(data.net)} booked from treasury.`;
+    if (data.status === "SENT" && data.txHash) {
+      setOk(`${booked} On-chain send ${data.txHash}.`);
+    } else if (data.status === "FAILED_SEND") {
+      setOk(`${booked} On-chain send failed — admin can retry. ${data.sendError ?? ""}`);
+    } else if (!data.sendConfigured) {
+      setOk(`${booked} On-chain send not configured.`);
+    } else {
+      setOk(booked);
+    }
     router.refresh();
   }
 
@@ -64,6 +74,10 @@ export function WithdrawForm({
   return (
     <GlassCard>
       <form onSubmit={onSubmit} className="space-y-4">
+        <WalletConnectButton
+          targetChainId={chain.chainId}
+          onAddress={(address) => setToAddress(address)}
+        />
         <label className="block text-sm">
           Amount
           <input
@@ -90,7 +104,7 @@ export function WithdrawForm({
           </select>
         </label>
         <label className="block text-sm">
-          Destination (on-chain later)
+          Payout destination
           <input
             value={toAddress}
             onChange={(e) => setToAddress(e.target.value)}
@@ -103,12 +117,14 @@ export function WithdrawForm({
           <p className="mt-1">
             Fee {feePct}% · {formatUsd(quote.fee)} · net payout {formatUsd(quote.net)}
           </p>
+          <p className="mt-2 leading-relaxed">
+            Confirming deducts your dashboard balance immediately if the treasury can cover the
+            net. Real USDT leaves the company hot wallet{chain.payoutConfigured ? "" : " only when chain env is configured"}.
+            {chain.payoutConfigured
+              ? " On-chain send is enabled."
+              : " On-chain send is not configured — this stays a treasury booking."}
+          </p>
         </div>
-        <DexPlaceholder
-          showAction={false}
-          title="Connect wallet (coming next)"
-          body="Payouts settle from the company treasury today. On-chain send ships later. Confirming deducts your available balance immediately and auto-approves if the payout pool can cover the net amount."
-        />
         <GoldButton type="submit" disabled={busy}>
           {busy ? "Withdrawing…" : "Withdraw"}
         </GoldButton>

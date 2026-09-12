@@ -17,7 +17,7 @@ const faqs = [
   },
   {
     q: "Can I deposit USDT on-chain today?",
-    a: "Not yet. Deposit still records an admin-reviewed intent. Withdrawals auto-approve against the company treasury and deduct your dashboard balance immediately. Wallet-connect on-chain send ships later.",
+    a: "Yes — connect a wallet, send USDT to the published company address, and submit the transaction hash. If a public RPC can verify a matching transfer, the desk credits you. Otherwise admin confirms. Withdrawals still auto-approve against the company treasury first; the hot wallet sends net USDT when configured.",
   },
   {
     q: "What happens if the company treasury is empty?",

@@ -3,42 +3,70 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GlassCard } from "@/components/brand/GlassCard";
-import { DexPlaceholder } from "@/components/desk/DexPlaceholder";
+import { GoldButton } from "@/components/brand/GoldButton";
+import { CompanyWalletCard } from "@/components/desk/CompanyWalletCard";
+import { WalletConnectButton } from "@/components/desk/WalletConnectButton";
+import type { PublicChainConfig } from "@/lib/chain";
 
-export function DepositForm() {
+export function DepositForm({ chain }: { chain: PublicChainConfig }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [watching, setWatching] = useState(false);
   const [amount, setAmount] = useState("250");
   const [walletType, setWalletType] = useState("TRADING");
+  const [txHash, setTxHash] = useState("");
+  const [fromAddress, setFromAddress] = useState("");
 
-  async function record() {
+  async function submit(watch = false) {
     setBusy(true);
+    setWatching(watch);
     setError(null);
+    setOk(null);
     const res = await fetch("/api/deposit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: Number(amount), walletType }),
+      body: JSON.stringify({
+        amount: Number(amount),
+        walletType,
+        txHash,
+        fromAddress,
+        watch,
+      }),
     });
     const data = await res.json();
     setBusy(false);
+    setWatching(false);
     if (!res.ok) {
-      setError(data.error ?? "Could not record intent");
+      setError(data.error ?? "Could not record deposit");
       return;
+    }
+    if (data.verified) {
+      setOk("On-chain USDT verified. Your wallet was credited.");
+    } else if (data.txHash) {
+      setOk("Intent recorded with your transaction hash. Admin will confirm if the chain could not auto-verify.");
+    } else {
+      setOk("Intent recorded. Send USDT to the company address, then submit the tx hash.");
     }
     router.refresh();
   }
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
-    void record();
+    void submit(false);
   }
 
   return (
     <GlassCard>
       <form onSubmit={onSubmit} className="space-y-4">
+        <WalletConnectButton
+          targetChainId={chain.chainId}
+          onAddress={(address) => setFromAddress(address)}
+        />
+        <CompanyWalletCard chain={chain} />
         <label className="block text-sm">
-          Amount (USD)
+          Amount (USD / USDT)
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -59,8 +87,46 @@ export function DepositForm() {
             <option value="NETWORK">Network</option>
           </select>
         </label>
-        <DexPlaceholder onAcknowledge={() => void record()} busy={busy} />
+        <label className="block text-sm">
+          Your sending address
+          <input
+            value={fromAddress}
+            onChange={(e) => setFromAddress(e.target.value)}
+            className="mt-1 w-full rounded-lg px-3 py-2"
+            placeholder="0x… (filled when you connect)"
+          />
+        </label>
+        <label className="block text-sm">
+          Transaction hash
+          <input
+            value={txHash}
+            onChange={(e) => setTxHash(e.target.value)}
+            className="mt-1 w-full rounded-lg px-3 py-2"
+            placeholder="0x… after you send USDT"
+          />
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <GoldButton type="submit" disabled={busy}>
+            {busy && !watching ? "Recording…" : "Record deposit"}
+          </GoldButton>
+          {chain.watchConfigured ? (
+            <GoldButton
+              type="button"
+              variant="ghost"
+              disabled={busy || !fromAddress}
+              onClick={() => void submit(true)}
+            >
+              {watching ? "Watching…" : "Watch recent transfer"}
+            </GoldButton>
+          ) : null}
+        </div>
+        <p className="text-xs leading-relaxed text-muted">
+          Auto-credit runs only when a public RPC can verify a matching USDT transfer to the
+          company address. Otherwise the hash is stored for admin confirmation. Forex remains
+          high risk — this is not a promise of profit.
+        </p>
         {error ? <p className="text-sm text-danger">{error}</p> : null}
+        {ok ? <p className="text-sm text-success">{ok}</p> : null}
       </form>
     </GlassCard>
   );

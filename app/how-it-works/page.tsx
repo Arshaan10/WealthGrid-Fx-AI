@@ -15,8 +15,8 @@ const steps = [
   },
   {
     n: "02",
-    title: "Record a deposit intent",
-    body: "Phase 1 cannot talk to a DEX yet. The deposit modal stores a pending intent for admin review.",
+    title: "Send USDT to the company wallet",
+    body: "Connect your wallet, copy the company deposit address, and send USDT. Record the tx hash — a public RPC can auto-credit a matching transfer, otherwise admin confirms.",
   },
   {
     n: "03",
@@ -36,7 +36,7 @@ const steps = [
   {
     n: "06",
     title: "Withdraw from the desk",
-    body: "Confirming deducts available balance immediately and auto-approves against the company treasury. Wallet-connect on-chain send is later.",
+    body: "Confirming deducts available balance immediately and auto-approves against the company treasury. The company hot wallet then sends net USDT when chain env is configured.",
   },
 ];
 
