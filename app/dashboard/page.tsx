@@ -10,7 +10,7 @@ import { RecentActivity } from "@/components/desk/RecentActivity";
 import { RoutingBanner } from "@/components/desk/RoutingBanner";
 import { VaultStrip } from "@/components/desk/VaultCard";
 import { rankBySlug } from "@/config/rewards";
-import { labelDay, userEarningsSeries, userWeeklyTradingBars } from "@/lib/analytics";
+import { rollupWeekly, userEarningsSeries, userWeeklyTradingBars } from "@/lib/analytics";
 import { getPublicChainConfig } from "@/lib/chain";
 import { syncOnchainDesk } from "@/lib/desk-sync";
 import { prisma } from "@/lib/prisma";
@@ -99,7 +99,7 @@ export default async function DashboardHomePage() {
           <div className="mb-3 flex items-start justify-between gap-3">
             <div>
               <p className="text-[10px] uppercase tracking-[0.2em] text-gold/80">28-day book</p>
-              <h3 className="font-display text-2xl">Earnings over time</h3>
+              <h3 className="font-display text-2xl">Weekly earnings</h3>
             </div>
             <ChartLegend
               items={[
@@ -108,11 +108,7 @@ export default async function DashboardHomePage() {
               ]}
             />
           </div>
-          <DualAreaChart
-            points={earnings.map((row) => ({
-              ...labelDay(row),
-            }))}
-          />
+          <DualAreaChart points={rollupWeekly(earnings)} />
         </GlassCard>
         <GlassCard className="p-5">
           <p className="text-[10px] uppercase tracking-[0.2em] text-gold/80">Vault mix</p>

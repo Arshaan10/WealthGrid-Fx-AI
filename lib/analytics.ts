@@ -31,6 +31,20 @@ export function labelDay(point: DayPoint) {
   return { ...point, label: shortLabel(point.date) };
 }
 
+export function rollupWeekly(points: DayPoint[]) {
+  const buckets: { label: string; trading: number; network: number }[] = [];
+  for (let i = 0; i < points.length; i += 7) {
+    const slice = points.slice(i, i + 7);
+    const last = slice[slice.length - 1];
+    buckets.push({
+      label: last ? shortLabel(last.date) : `W${buckets.length + 1}`,
+      trading: Number(slice.reduce((sum, row) => sum + row.trading, 0).toFixed(2)),
+      network: Number(slice.reduce((sum, row) => sum + row.network, 0).toFixed(2)),
+    });
+  }
+  return buckets;
+}
+
 export async function userEarningsSeries(userId: string, days = 28): Promise<DayPoint[]> {
   const to = new Date();
   const from = new Date(to);

@@ -76,6 +76,17 @@ export function DualAreaChart({
       <path d={toArea("trading")} fill="url(#tradeFill)" />
       <path d={toPath("network")} fill="none" stroke="#f4efe3" strokeWidth="2" />
       <path d={toPath("trading")} fill="none" stroke="#d4af37" strokeWidth="2.2" />
+      {points.map((point, i) => {
+        const x = pad.left + i * step;
+        const yT = pad.top + innerH - (point.trading / peak) * innerH;
+        const yN = pad.top + innerH - (point.network / peak) * innerH;
+        return (
+          <g key={`dot-${point.label}-${i}`}>
+            <circle cx={x} cy={yN} r="3.2" fill="#0b0b0d" stroke="#f4efe3" strokeWidth="1.5" />
+            <circle cx={x} cy={yT} r="3.2" fill="#0b0b0d" stroke="#d4af37" strokeWidth="1.6" />
+          </g>
+        );
+      })}
       {ticks.map((point) => {
         const i = points.indexOf(point);
         return (
