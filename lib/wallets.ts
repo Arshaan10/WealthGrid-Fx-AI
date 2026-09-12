@@ -1,0 +1,154 @@
+import { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+
+export type WalletType = "TRADING" | "NETWORK";
+
+export async function getOrCreateWallet(userId: string, type: WalletType) {
+  return prisma.walletBalance.upsert({
+    where: { userId_type: { userId, type } },
+    update: {},
+    create: { userId, type, available: 0, pending: 0 },
+  });
+}
+
+export async function creditWallet(input: {
+  userId: string;
+  type: WalletType;
+  amount: Prisma.Decimal | string | number;
+  category: string;
+  description: string;
+  refId?: string;
+}) {
+  const amount = new Prisma.Decimal(input.amount);
+  const wallet = await getOrCreateWallet(input.userId, input.type);
+  const next = new Prisma.Decimal(wallet.available).plus(amount);
+
+  await prisma.walletBalance.update({
+    where: { id: wallet.id },
+    data: { available: next },
+  });
+
+  await prisma.ledgerEntry.create({
+    data: {
+      userId: input.userId,
+      walletType: input.type,
+      direction: "CREDIT",
+      category: input.category,
+      amount,
+      balanceAfter: next,
+      description: input.description,
+      refId: input.refId,
+    },
+  });
+
+  return next;
+}
+
+export async function debitAvailable(input: {
+  userId: string;
+  type: WalletType;
+  amount: Prisma.Decimal | string | number;
+  category: string;
+  description: string;
+  refId?: string;
+}) {
+  const amount = new Prisma.Decimal(input.amount);
+  const wallet = await getOrCreateWallet(input.userId, input.type);
+  const available = new Prisma.Decimal(wallet.available);
+  if (available.lessThan(amount)) {
+    throw new Error("Insufficient available balance");
+  }
+  const next = available.minus(amount);
+
+  await prisma.walletBalance.update({
+    where: { id: wallet.id },
+    data: { available: next },
+  });
+
+  await prisma.ledgerEntry.create({
+    data: {
+      userId: input.userId,
+      walletType: input.type,
+      direction: "DEBIT",
+      category: input.category,
+      amount,
+      balanceAfter: next,
+      description: input.description,
+      refId: input.refId,
+    },
+  });
+
+  return next;
+}
+
+export async function reserveForWithdrawal(input: {
+  userId: string;
+  type: WalletType;
+  amount: Prisma.Decimal | string | number;
+  description: string;
+  refId?: string;
+}) {
+  const amount = new Prisma.Decimal(input.amount);
+  const wallet = await getOrCreateWallet(input.userId, input.type);
+  const available = new Prisma.Decimal(wallet.available);
+  if (available.lessThan(amount)) {
+    throw new Error("Insufficient available balance");
+  }
+  const nextAvailable = available.minus(amount);
+  const nextPending = new Prisma.Decimal(wallet.pending).plus(amount);
+
+  await prisma.walletBalance.update({
+    where: { id: wallet.id },
+    data: { available: nextAvailable, pending: nextPending },
+  });
+
+  await prisma.ledgerEntry.create({
+    data: {
+      userId: input.userId,
+      walletType: input.type,
+      direction: "DEBIT",
+      category: "WITHDRAWAL",
+      amount,
+      balanceAfter: nextAvailable,
+      description: input.description,
+      refId: input.refId,
+    },
+  });
+}
+
+export async function releaseReservation(input: {
+  userId: string;
+  type: WalletType;
+  amount: Prisma.Decimal | string | number;
+  restoreAvailable: boolean;
+}) {
+  const amount = new Prisma.Decimal(input.amount);
+  const wallet = await getOrCreateWallet(input.userId, input.type);
+  const pending = new Prisma.Decimal(wallet.pending);
+  const nextPending = pending.minus(amount);
+  const nextAvailable = input.restoreAvailable
+    ? new Prisma.Decimal(wallet.available).plus(amount)
+    : new Prisma.Decimal(wallet.available);
+
+  await prisma.walletBalance.update({
+    where: { id: wallet.id },
+    data: {
+      pending: nextPending.lessThan(0) ? 0 : nextPending,
+      available: nextAvailable,
+    },
+  });
+
+  if (input.restoreAvailable) {
+    await prisma.ledgerEntry.create({
+      data: {
+        userId: input.userId,
+        walletType: input.type,
+        direction: "CREDIT",
+        category: "ADJUSTMENT",
+        amount,
+        balanceAfter: nextAvailable,
+        description: "Withdrawal rejected — funds restored",
+      },
+    });
+  }
+}

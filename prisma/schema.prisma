@@ -1,0 +1,172 @@
+// Whealth Grid Fx AI — Phase 1 schema (SQLite for local/dev).
+// To use Postgres later: change provider to "postgresql", update DATABASE_URL, then `npx prisma db push`.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  passwordHash  String
+  role          String   @default("USER") // USER | ADMIN
+  walletAddress String?
+  referralCode  String   @unique
+  referredById  String?
+  referredBy    User?    @relation("UserReferrals", fields: [referredById], references: [id])
+  downline      User[]   @relation("UserReferrals")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  wallets       WalletBalance[]
+  ledger        LedgerEntry[]
+  activations   PackageActivation[]
+  referralsMade Referral[]          @relation("Referrer")
+  referralsGot  Referral[]          @relation("Referee")
+  rewardPayouts RewardPayout[]
+  rankProgress  RankProgress?
+  deposits      DepositIntent[]
+  withdrawals   WithdrawalRequest[]
+  announcements Announcement[]
+  auditLogs     AuditLog[]
+}
+
+model WalletBalance {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String // TRADING | NETWORK
+  available Decimal  @default(0)
+  pending   Decimal  @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, type])
+}
+
+model LedgerEntry {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  walletType   String
+  direction    String // CREDIT | DEBIT
+  category     String // DEPOSIT | WITHDRAWAL | PACKAGE | REWARD | ADJUSTMENT | REFERRAL
+  amount       Decimal
+  balanceAfter Decimal
+  description  String
+  refId        String?
+  createdAt    DateTime @default(now())
+}
+
+model Package {
+  id          String              @id @default(cuid())
+  slug        String              @unique
+  name        String
+  minAmount   Decimal
+  dailyRate   Decimal
+  maxReturn   Decimal
+  networkCap  Decimal
+  active      Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  activations PackageActivation[]
+}
+
+model PackageActivation {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packageId String
+  package   Package   @relation(fields: [packageId], references: [id])
+  amount    Decimal
+  status    String    @default("ACTIVE") // ACTIVE | COMPLETED | CANCELLED
+  startedAt DateTime  @default(now())
+  endsAt    DateTime?
+}
+
+model Referral {
+  id         String   @id @default(cuid())
+  referrerId String
+  referrer   User     @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  refereeId  String
+  referee    User     @relation("Referee", fields: [refereeId], references: [id], onDelete: Cascade)
+  level      Int      @default(1)
+  createdAt  DateTime @default(now())
+
+  @@unique([referrerId, refereeId])
+}
+
+model RewardPayout {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String // DAILY | DIRECT | TEAM | RANK | LOYALTY | TURNOVER
+  amount    Decimal
+  status    String   @default("PENDING") // PENDING | PAID | CANCELLED
+  note      String?
+  createdAt DateTime @default(now())
+}
+
+model RankProgress {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentRank     String   @default("NONE")
+  teamVolume      Decimal  @default(0)
+  personalVolume  Decimal  @default(0)
+  updatedAt       DateTime @updatedAt
+}
+
+model DepositIntent {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount     Decimal
+  walletType String    @default("TRADING")
+  status     String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  txHint     String?
+  note       String?
+  createdAt  DateTime  @default(now())
+  reviewedAt DateTime?
+  reviewedBy String?
+}
+
+model WithdrawalRequest {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount     Decimal
+  walletType String
+  toAddress  String?
+  status     String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  note       String?
+  createdAt  DateTime  @default(now())
+  reviewedAt DateTime?
+  reviewedBy String?
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  published Boolean  @default(true)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  meta      String?
+  createdAt DateTime @default(now())
+}
