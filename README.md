@@ -69,14 +69,16 @@ WALLETCONNECT_PROJECT_ID=""
 
 | Variable | Where | Notes |
 | --- | --- | --- |
-| `CHAIN_ID` | Server (+ optional `NEXT_PUBLIC_`) | Default **97** (BSC testnet). Use **56** for BSC mainnet. |
+| `CHAIN_ID` | Server (+ optional `NEXT_PUBLIC_`) | **56 or 97 only** (BNB Smart Chain). Other IDs fall back to 97. |
 | `RPC_URL` | Server (+ optional `NEXT_PUBLIC_`) | Public RPC is fine for reads. Needed for send + deposit verify. |
-| `USDT_CONTRACT_ADDRESS` | Server (+ optional `NEXT_PUBLIC_`) | BEP-20/ERC-20 USDT. Mainnet BSC default if unset and `CHAIN_ID=56`: `0x55d398326f99059fF775485246999027B3197955` (18 decimals). Testnet has no official USDT — deploy or use a faucet token. |
-| `USDT_DECIMALS` | Server | Default `18` (BSC USDT). Ethereum USDT is `6`. |
+| `USDT_CONTRACT_ADDRESS` | Server (+ optional `NEXT_PUBLIC_`) | **USDT BEP-20 only.** Mainnet BSC default if unset and `CHAIN_ID=56`: `0x55d398326f99059fF775485246999027B3197955` (18 decimals). Testnet has no official USDT — deploy a BEP-20 test token. ERC-20 / TRC-20 are not accepted. |
+| `USDT_DECIMALS` | Server | Default `18` (BSC USDT BEP-20). |
 | `COMPANY_WALLET_ADDRESS` | Server (+ optional `NEXT_PUBLIC_`) | Public hot-wallet / deposit address. Shown in member + admin UI. |
 | `COMPANY_WALLET_PRIVATE_KEY` | **Server only** | Never commit a real key. Must match `COMPANY_WALLET_ADDRESS`. Build does **not** require this. |
-| `WALLETCONNECT_PROJECT_ID` | Server (passed into the client provider) | From [WalletConnect Cloud](https://cloud.walletconnect.com). Injected wallets work without it. |
+| `WALLETCONNECT_PROJECT_ID` | Server (passed into the client provider) | From [WalletConnect Cloud](https://cloud.walletconnect.com). Enables QR connect for **any** mobile/DEX wallet (Trust, TokenPocket, SafePal, Binance, etc.). Injected browser wallets (MetaMask, Rabby, in-app browsers) work without it. |
 | `CONFIRMATIONS_REQUIRED` | Server (+ optional `NEXT_PUBLIC_`) | Blocks before a deposit auto-credits or a payout is marked **CONFIRMED**. Default **3** on chain 97, **15** on chain 56. |
+
+Deposits and withdrawals are **USDT BEP-20 on BNB Smart Chain only**. Any injected Web3 wallet or WalletConnect DEX/mobile wallet can connect. The deposit page can send USDT BEP-20 from the connected wallet; withdrawals pay that same standard to the saved address.
 
 `NEXT_PUBLIC_*` aliases are documented in `.env.example` if you want build-time inlining. The app also reads the server names and passes public values into the Wagmi provider from the root layout.
 
@@ -85,13 +87,13 @@ WALLETCONNECT_PROJECT_ID=""
 #### Testnet walkthrough
 
 1. Create a WalletConnect Cloud project and set `WALLETCONNECT_PROJECT_ID`.
-2. Keep `CHAIN_ID=97` and a public BSC testnet RPC.
+2. Keep `CHAIN_ID=97` # 56 or 97 only — BNB Smart Chain / USDT BEP-20 and a public BSC testnet RPC.
 3. Deploy or pick a test USDT and set `USDT_CONTRACT_ADDRESS` + `USDT_DECIMALS`.
 4. Create a throwaway testnet wallet. Fund it with test BNB (gas) and test USDT.
 5. Set `COMPANY_WALLET_ADDRESS` and `COMPANY_WALLET_PRIVATE_KEY` for that wallet.
 6. Fund the **DB treasury** on `/admin/treasury` (ledger) **and** the hot wallet (on-chain).
 7. Set `CONFIRMATIONS_REQUIRED` (3 is the testnet default).
-8. Connect a member wallet on deposit/withdraw/profile. Deposit by sending test USDT to the company address. After the required confirmations the watcher auto-credits Trading or Network. Withdraw auto-debits the vault, then confirms the payout tx.
+8. Connect any Web3 / DEX wallet on deposit/withdraw/profile. Deposit by sending **USDT BEP-20** (in-app send or from the wallet) to the company address. After the required confirmations the watcher auto-credits Trading or Network. Withdraw auto-debits the vault, then pays USDT BEP-20 to the connected address.
 
 Without a private key / RPC / USDT contract, skip steps 3–5. The desk stays understandable end-to-end on the seeded demo accounts.
 

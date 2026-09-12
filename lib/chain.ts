@@ -2,6 +2,10 @@ import { addressesEqual, isEvmAddress, isPrivateKeyHex } from "@/lib/address";
 
 export const BSC_MAINNET_ID = 56;
 export const BSC_TESTNET_ID = 97;
+export const BEP20_USDT_MAINNET = "0x55d398326f99059fF775485246999027B3197955";
+export const BEP20_USDT_DECIMALS = 18;
+export const TOKEN_ASSET = "USDT";
+export const TOKEN_STANDARD = "BEP-20";
 
 const RPC_BY_CHAIN: Record<number, string> = {
   [BSC_MAINNET_ID]: "https://bsc-dataseed.binance.org",
@@ -14,8 +18,7 @@ const EXPLORER_BY_CHAIN: Record<number, string> = {
 };
 
 const USDT_BY_CHAIN: Record<number, string> = {
-  // BEP-20 USDT on BSC mainnet (18 decimals)
-  [BSC_MAINNET_ID]: "0x55d398326f99059fF775485246999027B3197955",
+  [BSC_MAINNET_ID]: BEP20_USDT_MAINNET,
 };
 
 const NAME_BY_CHAIN: Record<number, string> = {
@@ -31,10 +34,21 @@ function readEnv(...keys: string[]) {
   return "";
 }
 
+export function isBscChainId(chainId: number) {
+  return chainId === BSC_MAINNET_ID || chainId === BSC_TESTNET_ID;
+}
+
 export function getChainId() {
   const raw = readEnv("NEXT_PUBLIC_CHAIN_ID", "CHAIN_ID") || String(BSC_TESTNET_ID);
   const parsed = Number(raw);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : BSC_TESTNET_ID;
+  return isBscChainId(parsed) ? parsed : BSC_TESTNET_ID;
+}
+
+export function assertBscNetwork(chainId = getChainId()) {
+  if (!isBscChainId(chainId)) {
+    throw new Error("Only BNB Smart Chain (BEP-20) is supported for USDT deposits and withdrawals.");
+  }
+  return chainId;
 }
 
 export function getChainName(chainId = getChainId()) {
@@ -64,9 +78,9 @@ export function getUsdtAddress(chainId = getChainId()) {
 }
 
 export function getUsdtDecimals() {
-  const raw = readEnv("USDT_DECIMALS", "NEXT_PUBLIC_USDT_DECIMALS") || "18";
+  const raw = readEnv("USDT_DECIMALS", "NEXT_PUBLIC_USDT_DECIMALS") || String(BEP20_USDT_DECIMALS);
   const parsed = Number(raw);
-  return Number.isInteger(parsed) && parsed >= 0 && parsed <= 36 ? parsed : 18;
+  return Number.isInteger(parsed) && parsed >= 0 && parsed <= 36 ? parsed : BEP20_USDT_DECIMALS;
 }
 
 export function getCompanyWalletAddress() {
@@ -113,6 +127,9 @@ export type PublicChainConfig = {
   payoutConfigured: boolean;
   watchConfigured: boolean;
   requiredConfirmations: number;
+  tokenAsset: typeof TOKEN_ASSET;
+  tokenStandard: typeof TOKEN_STANDARD;
+  networkLabel: string;
 };
 
 export function getPublicChainConfig(): PublicChainConfig {
@@ -133,14 +150,17 @@ export function getPublicChainConfig(): PublicChainConfig {
     payoutConfigured: isPayoutConfigured(),
     watchConfigured: isWatchConfigured(),
     requiredConfirmations: getRequiredConfirmations(chainId),
+    tokenAsset: TOKEN_ASSET,
+    tokenStandard: TOKEN_STANDARD,
+    networkLabel: `${TOKEN_ASSET} ${TOKEN_STANDARD} · ${getChainName(chainId)}`,
   };
 }
 
 export function payoutConfigNote() {
   if (isPayoutConfigured()) {
-    return "On-chain USDT send is configured. Successful auto-withdrawals attempt a company hot-wallet transfer for the net amount.";
+    return "USDT BEP-20 send is configured. Successful auto-withdrawals transfer USDT on BNB Smart Chain from the company hot wallet.";
   }
-  return "On-chain send is not configured. Withdrawals still auto-approve against the DB treasury. Set COMPANY_WALLET_PRIVATE_KEY, RPC_URL, USDT_CONTRACT_ADDRESS, and COMPANY_WALLET_ADDRESS to enable BEP-20/ERC-20 payouts.";
+  return "On-chain send is not configured. Withdrawals still auto-approve against the DB treasury. Set COMPANY_WALLET_PRIVATE_KEY, RPC_URL, USDT_CONTRACT_ADDRESS, and COMPANY_WALLET_ADDRESS to enable USDT BEP-20 payouts on BSC.";
 }
 
 export function companyAddressMatches(address?: string | null) {

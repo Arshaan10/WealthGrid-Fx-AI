@@ -4,7 +4,9 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GlassCard } from "@/components/brand/GlassCard";
 import { GoldButton } from "@/components/brand/GoldButton";
+import { Bep20Banner } from "@/components/desk/Bep20Banner";
 import { CompanyWalletCard } from "@/components/desk/CompanyWalletCard";
+import { SendUsdtButton } from "@/components/desk/SendUsdtButton";
 import { WalletConnectButton } from "@/components/desk/WalletConnectButton";
 import type { PublicChainConfig } from "@/lib/chain";
 import { formatUsd } from "@/lib/utils";
@@ -20,7 +22,7 @@ export function DepositForm({ chain }: { chain: PublicChainConfig }) {
   const [txHash, setTxHash] = useState("");
   const [fromAddress, setFromAddress] = useState("");
 
-  async function submit(watch = false) {
+  async function submit(watch = false, hash = txHash) {
     setBusy(true);
     setWatching(watch);
     setError(null);
@@ -31,7 +33,7 @@ export function DepositForm({ chain }: { chain: PublicChainConfig }) {
       body: JSON.stringify({
         amount: Number(amount),
         walletType,
-        txHash,
+        txHash: hash,
         fromAddress,
         watch,
       }),
@@ -54,7 +56,7 @@ export function DepositForm({ chain }: { chain: PublicChainConfig }) {
     } else if (data.txHash) {
       setOk("Tx recorded. The watcher will auto-credit after confirmations once RPC can see the transfer.");
     } else {
-      setOk("Intent recorded. Send USDT to the company address — auto-credit runs after on-chain confirmations.");
+      setOk("Intent recorded. Send USDT BEP-20 from any Web3 wallet to the company address — auto-credit runs after confirmations.");
     }
     router.refresh();
   }
@@ -67,13 +69,14 @@ export function DepositForm({ chain }: { chain: PublicChainConfig }) {
   return (
     <GlassCard>
       <form onSubmit={onSubmit} className="space-y-4">
+        <Bep20Banner chain={chain} />
         <WalletConnectButton
           targetChainId={chain.chainId}
           onAddress={(address) => setFromAddress(address)}
         />
         <CompanyWalletCard chain={chain} />
         <label className="block text-sm">
-          Amount (USD / USDT)
+          Amount (USDT BEP-20)
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -109,9 +112,17 @@ export function DepositForm({ chain }: { chain: PublicChainConfig }) {
             value={txHash}
             onChange={(e) => setTxHash(e.target.value)}
             className="mt-1 w-full rounded-lg px-3 py-2"
-            placeholder="0x… after you send USDT"
+            placeholder="0x… after you send USDT BEP-20"
           />
         </label>
+        <SendUsdtButton
+          chain={chain}
+          amount={amount}
+          onSent={(hash) => {
+            setTxHash(hash);
+            void submit(false, hash);
+          }}
+        />
         <div className="flex flex-wrap gap-2">
           <GoldButton type="submit" disabled={busy}>
             {busy && !watching ? "Recording…" : "Record deposit"}
@@ -128,7 +139,7 @@ export function DepositForm({ chain }: { chain: PublicChainConfig }) {
           ) : null}
         </div>
         <p className="text-xs leading-relaxed text-muted">
-          Auto-credit runs when a public RPC sees a matching USDT transfer and it reaches{" "}
+          Auto-credit runs when a public RPC sees a matching USDT BEP-20 transfer and it reaches{" "}
           {chain.requiredConfirmations} confirmations. No admin click on that happy path. Forex
           remains high risk — this is not a promise of profit.
         </p>

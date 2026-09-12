@@ -2,6 +2,7 @@ import { createPublicClient, createWalletClient, erc20Abi, http, parseUnits, typ
 import { privateKeyToAccount } from "viem/accounts";
 import { isEvmAddress, isPrivateKeyHex, isTxHash, normalizeAddress, normalizePrivateKey } from "@/lib/address";
 import {
+  assertBscNetwork,
   getChainId,
   getCompanyWalletAddress,
   getRequiredConfirmations,
@@ -203,7 +204,7 @@ async function transferUsdt(toAddress: string | null, netAmount: string) {
     transport,
   });
 
-  const chainId = getChainId();
+  const chainId = assertBscNetwork(getChainId());
   const [onChainId, balance] = await Promise.all([
     publicClient.getChainId(),
     publicClient.readContract({
@@ -215,7 +216,9 @@ async function transferUsdt(toAddress: string | null, netAmount: string) {
   ]);
 
   if (onChainId !== chainId) {
-    throw new Error(`RPC chain ${onChainId} does not match configured CHAIN_ID ${chainId}.`);
+    throw new Error(
+      `RPC is not BNB Smart Chain BEP-20 (got ${onChainId}, expected ${chainId}). USDT deposits and payouts are BEP-20 only.`,
+    );
   }
   if (balance < amount) {
     throw new Error(

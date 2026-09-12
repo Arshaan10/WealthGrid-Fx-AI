@@ -10,6 +10,7 @@ import {
 } from "viem";
 import { addressesEqual, isEvmAddress, isTxHash, normalizeAddress } from "@/lib/address";
 import {
+  assertBscNetwork,
   getCompanyWalletAddress,
   getRequiredConfirmations,
   getRpcUrl,
@@ -47,9 +48,10 @@ function requireWatchConfig() {
 }
 
 export function getRpcClient() {
+  assertBscNetwork();
   const rpcUrl = getRpcUrl();
   if (!rpcUrl) {
-    throw new Error("RPC_URL is required to read the chain.");
+    throw new Error("RPC_URL is required to read the BNB Smart Chain.");
   }
   return createPublicClient({
     transport: http(rpcUrl),
@@ -110,7 +112,9 @@ export async function verifyUsdtDepositTx(txHash: string): Promise<VerifiedTrans
   }
 
   if (matches.length === 0) {
-    throw new Error("No USDT transfer to the company deposit address was found in that transaction.");
+    throw new Error(
+      "No USDT BEP-20 transfer to the company deposit address was found in that transaction.",
+    );
   }
 
   const total = matches.reduce((sum, row) => sum + row.value, BigInt(0));

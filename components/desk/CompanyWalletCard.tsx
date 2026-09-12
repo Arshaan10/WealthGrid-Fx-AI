@@ -19,7 +19,7 @@ export function CompanyWalletCard({
           <p className="text-sm font-semibold text-cream">{title}</p>
           <p className="mt-1 text-xs leading-relaxed text-muted">
             {body ??
-              `Send USDT (BEP-20 / ERC-20) on ${chain.chainName} (chain ${chain.chainId}) to the company hot wallet. The admin treasury is a separate DB float — both must be funded.`}
+              `Send USDT BEP-20 only on ${chain.chainName} (chain ${chain.chainId}) to the company hot wallet. Other networks are rejected. The admin treasury is a separate DB float — both must be funded.`}
           </p>
           {chain.companyWalletAddress ? (
             <div className="mt-3 space-y-2">
@@ -30,7 +30,8 @@ export function CompanyWalletCard({
                 <CopyText value={chain.companyWalletAddress} />
               </div>
               <p className="text-[11px] uppercase tracking-[0.14em] text-muted">
-                Token {chain.usdtContractAddress ?? "USDT contract not set"} · {chain.usdtDecimals}{" "}
+                {chain.tokenAsset} {chain.tokenStandard} ·{" "}
+                {chain.usdtContractAddress ?? "USDT contract not set"} · {chain.usdtDecimals}{" "}
                 decimals
               </p>
               <a

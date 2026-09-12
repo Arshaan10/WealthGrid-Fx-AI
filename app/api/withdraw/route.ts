@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isEvmAddress } from "@/lib/address";
-import { isPayoutConfigured } from "@/lib/chain";
+import { assertBscNetwork, isPayoutConfigured } from "@/lib/chain";
 import { attemptOnChainPayout } from "@/lib/payout";
 import { amountSchema } from "@/lib/validators";
 import { getWalletSnapshot } from "@/lib/wallets";
@@ -21,9 +21,18 @@ export async function POST(request: Request) {
   }
 
   const toAddress = parsed.data.toAddress?.trim() || "";
+  try {
+    assertBscNetwork();
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "BEP-20 network required." },
+      { status: 400 },
+    );
+  }
+
   if (isPayoutConfigured() && !isEvmAddress(toAddress)) {
     return NextResponse.json(
-      { error: "Connect a wallet or enter a valid payout address before withdrawing." },
+      { error: "Connect a Web3 wallet or enter a valid BNB Smart Chain payout address." },
       { status: 400 },
     );
   }

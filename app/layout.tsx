@@ -34,7 +34,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={`${display.variable} ${sans.variable} font-sans antialiased`}>
         <SessionProvider>
-          <Web3Provider projectId={chain.walletConnectProjectId} rpcUrl={chain.rpcUrl}>
+          <Web3Provider
+            projectId={chain.walletConnectProjectId}
+            rpcUrl={chain.rpcUrl}
+            chainId={chain.chainId}
+          >
             {children}
           </Web3Provider>
         </SessionProvider>

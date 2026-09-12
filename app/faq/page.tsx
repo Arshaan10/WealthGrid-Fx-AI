@@ -17,7 +17,7 @@ const faqs = [
   },
   {
     q: "Can I deposit USDT on-chain today?",
-    a: "Yes — connect a wallet, send USDT to the published company address, and submit the transaction hash. If a public RPC can verify a matching transfer, the desk credits you. Otherwise admin confirms. Withdrawals still auto-approve against the company treasury first; the hot wallet sends net USDT when configured.",
+    a: "Yes — USDT BEP-20 on BNB Smart Chain only. Connect any Web3 / DEX wallet (MetaMask, Trust, WalletConnect, TokenPocket, and others), send USDT BEP-20 to the company address, or use the in-desk send button. After the required confirmations the desk auto-credits Trading or Network. Withdrawals auto-approve against treasury, then pay USDT BEP-20 to your connected address when the hot wallet is configured. Other networks and tokens are rejected.",
   },
   {
     q: "What happens if the company treasury is empty?",

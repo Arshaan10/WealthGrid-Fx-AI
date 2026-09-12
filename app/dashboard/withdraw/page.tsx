@@ -33,12 +33,13 @@ export default async function WithdrawPage() {
   return (
     <div className="space-y-6">
       <GlassCard>
-        <h2 className="font-display text-3xl">Withdraw</h2>
+        <h2 className="font-display text-3xl">Withdraw USDT BEP-20</h2>
         <p className="mt-2 text-sm text-muted">
-          Confirming auto-debits the selected Trading or Network vault immediately if treasury
-          can cover the net. A {withdrawal.feePct}% fee applies. When the company payout
-          transaction reaches {chain.requiredConfirmations} confirmations, status becomes
-          CONFIRMED.
+          Connect any Web3 / DEX wallet as the payout destination. Confirming auto-debits the
+          selected Trading or Network vault immediately if treasury can cover the net. A{" "}
+          {withdrawal.feePct}% fee applies. The company hot wallet pays{" "}
+          <strong className="text-cream">USDT BEP-20</strong> on {chain.chainName} only. After{" "}
+          {chain.requiredConfirmations} confirmations, status becomes CONFIRMED.
           {!chain.payoutConfigured ? " On-chain send is not configured in this environment." : ""}
         </p>
       </GlassCard>

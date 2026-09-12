@@ -22,8 +22,8 @@ export default async function ProfilePage() {
       <GlassCard>
         <h2 className="font-display text-3xl">Profile</h2>
         <p className="mt-2 text-sm text-muted">
-          Connect a wallet to bond your payout destination on {chain.chainName}. Withdrawals use
-          this address and you can still edit it by hand.
+          Connect any Web3 / DEX wallet to bond your USDT BEP-20 payout destination on{" "}
+          {chain.chainName}. Withdrawals use this address and you can still edit it by hand.
         </p>
       </GlassCard>
       <ProfileIdentity

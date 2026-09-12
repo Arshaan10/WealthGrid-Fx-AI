@@ -4,6 +4,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GlassCard } from "@/components/brand/GlassCard";
 import { GoldButton } from "@/components/brand/GoldButton";
+import { Bep20Banner } from "@/components/desk/Bep20Banner";
 import { WalletConnectButton } from "@/components/desk/WalletConnectButton";
 import type { PublicChainConfig } from "@/lib/chain";
 import { formatUsd } from "@/lib/utils";
@@ -86,12 +87,13 @@ export function WithdrawForm({
   return (
     <GlassCard>
       <form onSubmit={onSubmit} className="space-y-4">
+        <Bep20Banner chain={chain} />
         <WalletConnectButton
           targetChainId={chain.chainId}
           onAddress={(address) => setToAddress(address)}
         />
         <label className="block text-sm">
-          Amount
+          Amount (USDT BEP-20)
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -131,9 +133,10 @@ export function WithdrawForm({
           </p>
           <p className="mt-2 leading-relaxed">
             Confirming deducts your dashboard balance immediately if the treasury can cover the
-            net. Real USDT leaves the company hot wallet{chain.payoutConfigured ? "" : " only when chain env is configured"}.
+            net. Real USDT BEP-20 leaves the company hot wallet on BNB Smart Chain
+            {chain.payoutConfigured ? "" : " only when chain env is configured"}.
             {chain.payoutConfigured
-              ? " On-chain send is enabled."
+              ? " On-chain BEP-20 send is enabled."
               : " On-chain send is not configured — this stays a treasury booking."}
           </p>
         </div>

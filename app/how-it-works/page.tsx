@@ -15,8 +15,8 @@ const steps = [
   },
   {
     n: "02",
-    title: "Send USDT to the company wallet",
-    body: "Connect your wallet, copy the company deposit address, and send USDT. Record the tx hash — a public RPC can auto-credit a matching transfer, otherwise admin confirms.",
+    title: "Send USDT BEP-20 to the company wallet",
+    body: "Connect any Web3 / DEX wallet, send USDT BEP-20 on BNB Smart Chain only, or use the in-desk send. After required confirmations the desk auto-credits Trading or Network.",
   },
   {
     n: "03",
@@ -36,7 +36,7 @@ const steps = [
   {
     n: "06",
     title: "Withdraw from the desk",
-    body: "Confirming deducts available balance immediately and auto-approves against the company treasury. The company hot wallet then sends net USDT when chain env is configured.",
+    body: "Confirming deducts available balance immediately and auto-approves against the company treasury. The company hot wallet then sends net USDT BEP-20 to your connected wallet when chain env is configured.",
   },
 ];
 

@@ -54,7 +54,7 @@ export async function executeAutoWithdrawal(input: {
         netAmount: quote.net,
         walletType: input.type,
         toAddress: input.toAddress || null,
-        note: input.note ?? "Auto-approved — settled from company treasury",
+        note: input.note ?? "Auto-approved — USDT BEP-20 payout from company treasury",
         status: "APPROVED",
         reviewedAt: new Date(),
       },

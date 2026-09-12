@@ -28,11 +28,12 @@ export default async function DepositPage() {
   return (
     <div className="space-y-6">
       <GlassCard>
-        <h2 className="font-display text-3xl">Deposit USDT</h2>
+        <h2 className="font-display text-3xl">Deposit USDT BEP-20</h2>
         <p className="mt-2 text-sm text-muted">
-          Connect your wallet and send USDT to the company address on {chain.chainName}. When the
-          transaction reaches {chain.requiredConfirmations} confirmations, the desk auto-credits
-          your chosen Trading or Network vault — no admin click on the happy path.
+          Connect any Web3 / DEX wallet and send <strong className="text-cream">USDT BEP-20</strong>{" "}
+          on {chain.chainName} only. Other networks are rejected. When the transaction reaches{" "}
+          {chain.requiredConfirmations} confirmations, the desk auto-credits your chosen Trading
+          or Network vault — no admin click on the happy path.
         </p>
       </GlassCard>
       <OnchainSync />
