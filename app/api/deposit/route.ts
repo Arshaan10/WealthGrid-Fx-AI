@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { AccessError, assertMemberCanTransact } from "@/lib/access";
 import { authOptions } from "@/lib/auth";
 import { recordDepositIntent } from "@/lib/deposit-credit";
 import { amountSchema } from "@/lib/validators";
@@ -9,6 +10,15 @@ export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    await assertMemberCanTransact(session.user.id);
+  } catch (error) {
+    if (error instanceof AccessError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    throw error;
   }
 
   const body = await request.json().catch(() => null);

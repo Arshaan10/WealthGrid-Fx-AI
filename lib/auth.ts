@@ -26,6 +26,9 @@ export const authOptions: NextAuthOptions = {
 
         const ok = await bcrypt.compare(password, user.passwordHash);
         if (!ok) return null;
+        if (user.blocked) {
+          throw new Error("BLOCKED");
+        }
 
         return {
           id: user.id,

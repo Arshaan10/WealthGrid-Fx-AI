@@ -32,14 +32,24 @@ async function main() {
     },
   });
 
+  const now = new Date();
+
   const admin = await prisma.user.upsert({
     where: { email: "admin@whealthgrid.com" },
-    update: { passwordHash: adminHash, role: "ADMIN" },
+    update: {
+      passwordHash: adminHash,
+      role: "ADMIN",
+      phone: "+15550000001",
+      emailVerified: now,
+      blocked: false,
+    },
     create: {
       email: "admin@whealthgrid.com",
       name: "Desk Admin",
+      phone: "+15550000001",
       passwordHash: adminHash,
       role: "ADMIN",
+      emailVerified: now,
       referralCode: "WG-ADMIN1",
       walletAddress: "0x0000000000000000000000000000000000000001",
     },
@@ -47,12 +57,18 @@ async function main() {
 
   const demo = await prisma.user.upsert({
     where: { email: "demo@whealthgrid.com" },
-    update: { passwordHash: demoHash },
+    update: {
+      passwordHash: demoHash,
+      phone: "+15550000002",
+      emailVerified: now,
+    },
     create: {
       email: "demo@whealthgrid.com",
       name: "Aria Chen",
+      phone: "+15550000002",
       passwordHash: demoHash,
       role: "USER",
+      emailVerified: now,
       referralCode: "WG-DEMO01",
       walletAddress: "0x1111111111111111111111111111111111111111",
     },
@@ -60,12 +76,18 @@ async function main() {
 
   const member = await prisma.user.upsert({
     where: { email: "member@whealthgrid.com" },
-    update: { referredById: demo.id },
+    update: {
+      referredById: demo.id,
+      phone: "+15550000003",
+      emailVerified: now,
+    },
     create: {
       email: "member@whealthgrid.com",
       name: "Leo Okonkwo",
+      phone: "+15550000003",
       passwordHash: memberHash,
       role: "USER",
+      emailVerified: now,
       referralCode: "WG-MEMB01",
       referredById: demo.id,
     },
@@ -327,6 +349,22 @@ async function main() {
         balanceAfter: "10000",
         description: "Seeded company payout pool",
         actorId: admin.id,
+      },
+    });
+  }
+
+  if ((await prisma.supportTicket.count()) === 0) {
+    await prisma.supportTicket.create({
+      data: {
+        userId: demo.id,
+        subject: "Welcome desk check",
+        status: "OPEN",
+        messages: {
+          create: {
+            authorId: demo.id,
+            body: "Seeded ticket — confirm deposits auto-credit after chain confirmations.",
+          },
+        },
       },
     });
   }

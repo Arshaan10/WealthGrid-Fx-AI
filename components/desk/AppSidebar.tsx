@@ -8,7 +8,9 @@ import {
   ArrowUpRight,
   Gift,
   Landmark,
+  Headset,
   LayoutDashboard,
+  LifeBuoy,
   LogOut,
   Megaphone,
   Package,
@@ -30,6 +32,7 @@ const userIcons: Record<string, typeof Wallet> = {
   "/dashboard/withdraw": ArrowUpRight,
   "/dashboard/referrals": Users,
   "/dashboard/rewards": Gift,
+  "/dashboard/support": LifeBuoy,
   "/dashboard/profile": UserRound,
 };
 
@@ -37,6 +40,7 @@ const adminIcons: Record<string, typeof Wallet> = {
   "/admin": Shield,
   "/admin/treasury": Landmark,
   "/admin/users": Users,
+  "/admin/support": Headset,
   "/admin/packages": Package,
   "/admin/queue": ArrowDownLeft,
   "/admin/rewards": Gift,

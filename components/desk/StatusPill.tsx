@@ -9,13 +9,17 @@ export function StatusPill({ status }: { status: string }) {
     status === "ACTIVE" ||
     status === "published" ||
     status === "CREDIT" ||
-    status === "TOPUP"
+    status === "TOPUP" ||
+    status === "OPEN" ||
+    status === "VERIFIED"
       ? "text-success border-success/30 bg-success/10"
       : status === "REJECTED" ||
           status === "CANCELLED" ||
           status === "FAILED_SEND" ||
           status === "DEBIT" ||
-          status === "PAYOUT"
+          status === "PAYOUT" ||
+          status === "CLOSED" ||
+          status === "BLOCKED"
         ? "text-danger border-danger/30 bg-danger/10"
         : "text-gold border-gold-line bg-gold-dim";
 

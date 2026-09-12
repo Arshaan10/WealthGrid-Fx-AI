@@ -3,6 +3,7 @@ import { z } from "zod";
 export const registerSchema = z.object({
   name: z.string().min(2).max(80),
   email: z.string().email(),
+  phone: z.string().min(8).max(24),
   password: z.string().min(8).max(80),
   referralCode: z.string().max(32).optional().or(z.literal("")),
 });
@@ -39,6 +40,31 @@ export const walletAddressSchema = z.object({
 
 export const profileSchema = z.object({
   name: z.string().min(2).max(80),
+  phone: z.string().min(8).max(24),
+  walletAddress: z
+    .string()
+    .max(128)
+    .optional()
+    .or(z.literal(""))
+    .refine((value) => !value || /^0x[a-fA-F0-9]{40}$/.test(value), "Enter a valid EVM address."),
+});
+
+export const ticketCreateSchema = z.object({
+  subject: z.string().min(3).max(140),
+  body: z.string().min(8).max(4000),
+});
+
+export const ticketReplySchema = z.object({
+  body: z.string().min(2).max(4000),
+});
+
+export const ticketStatusSchema = z.object({
+  status: z.enum(["OPEN", "PENDING", "CLOSED"]),
+});
+
+export const adminUserSchema = z.object({
+  id: z.string().min(1),
+  blocked: z.boolean().optional(),
   walletAddress: z
     .string()
     .max(128)

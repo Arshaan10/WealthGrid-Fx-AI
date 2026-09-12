@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { ForexAtmosphere } from "@/components/brand/ForexAtmosphere";
+import { ForexTicker } from "@/components/brand/ForexTicker";
 import { AppSidebar } from "@/components/desk/AppSidebar";
 import type { ReactNode } from "react";
 
@@ -52,6 +53,7 @@ export function DeskShell({
             </div>
             <p className="text-xs text-muted">{userLabel}</p>
           </header>
+          {mode === "user" ? <ForexTicker compact /> : null}
           <div className="flex-1 px-4 py-6 sm:px-6">{children}</div>
         </div>
       </div>

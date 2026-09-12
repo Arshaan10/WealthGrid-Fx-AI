@@ -1,4 +1,4 @@
-// Whealth Grid Fx AI — Phase 1 schema (SQLite for local/dev).
+// Whealth Grid Fx AI — desk schema (SQLite for local/dev).
 // To use Postgres later: change provider to "postgresql", update DATABASE_URL, then `npx prisma db push`.
 
 generator client {
@@ -11,18 +11,23 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  name          String
-  passwordHash  String
-  role          String   @default("USER") // USER | ADMIN
-  walletAddress String?
-  referralCode  String   @unique
-  referredById  String?
-  referredBy    User?    @relation("UserReferrals", fields: [referredById], references: [id])
-  downline      User[]   @relation("UserReferrals")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  name               String
+  phone              String?   @unique
+  passwordHash       String
+  role               String    @default("USER") // USER | ADMIN
+  blocked            Boolean   @default(false)
+  emailVerified      DateTime?
+  emailVerifyToken   String?
+  emailVerifyExpires DateTime?
+  walletAddress      String?
+  referralCode       String    @unique
+  referredById       String?
+  referredBy         User?     @relation("UserReferrals", fields: [referredById], references: [id])
+  downline           User[]    @relation("UserReferrals")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   wallets       WalletBalance[]
   ledger        LedgerEntry[]
@@ -36,6 +41,8 @@ model User {
   announcements     Announcement[]
   auditLogs         AuditLog[]
   treasuryMoves     TreasuryMovement[]
+  tickets           SupportTicket[]
+  ticketMessages    SupportMessage[]
 }
 
 model WalletBalance {
@@ -195,6 +202,27 @@ model Announcement {
   author    User     @relation(fields: [authorId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model SupportTicket {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject   String
+  status    String           @default("OPEN") // OPEN | PENDING | CLOSED
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  messages  SupportMessage[]
+}
+
+model SupportMessage {
+  id        String        @id @default(cuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime      @default(now())
 }
 
 model AuditLog {

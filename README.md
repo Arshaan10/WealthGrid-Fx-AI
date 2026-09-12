@@ -10,10 +10,11 @@ Package, referral, rank, gift, and withdrawal-fee numbers live in [`config/rewar
 
 ## What is included
 
-- Public pages: Home, About, Packages, Rewards, Ranks, How it works, FAQ, Contact, Login, Register
-- Member desk (`/dashboard`): wallets + ledger, activate Pro, **wallet-connect deposit**, **auto-approved withdraw + optional on-chain send**, referrals, rewards, profile
-- Admin desk (`/admin`): treasury / payout pool + company hot-wallet address, users, packages/activations, deposit queue (tx hash + verify), withdrawal history (send status / retry), reward config view, ranks, announcements CRUD, audit log
-- Lifetime business data in Prisma (users, wallets, ledger, packages, referrals, payouts, ranks, intents, treasury, announcements, audit)
+- Public pages: Home, About, Packages, Rewards, Ranks, How it works, FAQ, Contact, Login, Register, email verify
+- Live Forex pairs ticker (gold/black marquee) on marketing pages and the member desk
+- Member desk (`/dashboard`): wallets + ledger, activate Pro, **wallet-connect deposit**, **auto-approved withdraw + optional on-chain send**, referrals, rewards, **support tickets**, profile / KYC-lite
+- Admin desk (`/admin`): treasury / payout pool + company hot-wallet address, users (**block/unblock** + edit withdrawal wallet), **support tickets**, packages/activations, deposit queue (tx hash + verify), withdrawal history (send status / retry), reward config view, ranks, announcements CRUD, audit log
+- Lifetime business data in Prisma (users, wallets, ledger, packages, referrals, payouts, ranks, intents, treasury, announcements, support tickets, audit)
 
 **This is not a promise of profit.** Daily ~0.5%, 250% package cap, and 400% network figures are a configured structure. Forex involves substantial risk of loss. On-chain sends move real USDT when keys are configured — treat the hot wallet as production funds.
 
@@ -107,7 +108,33 @@ Without a private key / RPC / USDT contract, skip steps 3–5. The desk stays un
 
 Demo ships with an active **Pro** package, sample ledger, a pending deposit, an **auto-approved** withdrawal, and a **company treasury** seeded at **$10,000** (minus the demo payout) so members can withdraw.
 
-Referral code on the demo desk: `WG-DEMO01`.
+Referral code on the demo desk: `WG-DEMO01`. Seed users have unique phones and a verified inbox so deposit/withdraw works immediately.
+
+## Forex ticker
+
+`GET /api/fx` pulls major pairs from the keyless [ExchangeRate-API open endpoint](https://www.exchangerate-api.com/docs/free) (`open.er-api.com`) and caches for 60 seconds. If the public feed is unreachable, the desk falls back to an indicative mock book (including XAUUSD). The marquee sits under the marketing header and at the top of the member dashboard.
+
+## Identity (KYC-lite)
+
+One desk per person:
+
+- Unique **email** and unique **phone** — register and profile update reject duplicates (“login instead of opening a second desk”).
+- Required fields: **full name**, **phone**, **verified email**.
+- Email verify is a **local token stub** (no SMTP). Register and Profile issue `/verify-email?token=…`. Seed accounts are already verified.
+- Blocked or incomplete identity cannot **deposit** or **withdraw**.
+
+## Admin user controls
+
+From `/admin/users/[id]`:
+
+- **Block / unblock** — blocked users cannot login, deposit, or withdraw.
+- View and edit that member’s **withdrawal wallet address**.
+
+## Support tickets
+
+- Member: `/dashboard/support` — create, list own tickets, reply.
+- Admin: `/admin/support` — list all, reply, set status **OPEN / PENDING / CLOSED**.
+- Stored as `SupportTicket` + `SupportMessage` in Prisma.
 
 ## Reward structure (config)
 
@@ -183,6 +210,8 @@ lib/chain.ts         # public chain / company wallet config
 lib/payout.ts        # idempotent company-wallet USDT send
 lib/onchain.ts       # deposit verify + confirmation count + Transfer watch
 lib/desk-sync.ts     # member deposit/payout watcher used by /api/desk/sync
+lib/fx.ts            # public FX quotes + mock fallback
+lib/access.ts        # blocked / KYC / one-identity checks
 prisma/schema.prisma # SQLite-first, Postgres-ready models
 prisma/seed.ts
 ```

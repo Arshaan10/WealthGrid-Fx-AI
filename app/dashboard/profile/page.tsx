@@ -4,6 +4,7 @@ import { ProfileForm } from "@/components/desk/ProfileForm";
 import { ProfileIdentity } from "@/components/desk/ProfileIdentity";
 import { rankBySlug } from "@/config/rewards";
 import { getPublicChainConfig } from "@/lib/chain";
+import { verifyUrlForToken } from "@/lib/email-verify";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { formatUsd } from "@/lib/utils";
@@ -22,8 +23,8 @@ export default async function ProfilePage() {
       <GlassCard>
         <h2 className="font-display text-3xl">Profile</h2>
         <p className="mt-2 text-sm text-muted">
-          Connect any Web3 / DEX wallet to bond your USDT BEP-20 payout destination on{" "}
-          {chain.chainName}. Withdrawals use this address and you can still edit it by hand.
+          Required identity: full name, unique phone, and a verified inbox. Connect any Web3 / DEX
+          wallet to bond your USDT BEP-20 payout destination on {chain.chainName}.
         </p>
       </GlassCard>
       <ProfileIdentity
@@ -39,8 +40,11 @@ export default async function ProfilePage() {
       <ProfileForm
         name={user?.name ?? ""}
         email={user?.email ?? ""}
+        phone={user?.phone ?? ""}
         walletAddress={user?.walletAddress ?? ""}
         referralCode={user?.referralCode ?? ""}
+        emailVerified={Boolean(user?.emailVerified)}
+        verifyUrl={user?.emailVerifyToken ? verifyUrlForToken(user.emailVerifyToken) : null}
         chainId={chain.chainId}
       />
       <RiskDisclaimer compact />

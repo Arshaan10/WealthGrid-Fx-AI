@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
+import { findIdentityConflict } from "@/lib/access";
 import { writeAudit } from "@/lib/audit";
+import { issueEmailVerification } from "@/lib/email-verify";
+import { normalizePhone } from "@/lib/phone";
+import { prisma } from "@/lib/prisma";
 import { generateReferralCode } from "@/lib/utils";
 import { registerSchema } from "@/lib/validators";
 
@@ -9,13 +12,23 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const parsed = registerSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Check name, email, and password." }, { status: 400 });
+    return NextResponse.json({ error: "Check full name, email, phone, and password." }, { status: 400 });
   }
 
   const email = parsed.data.email.toLowerCase();
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    return NextResponse.json({ error: "An account already uses that email." }, { status: 409 });
+  let phone: string;
+  try {
+    phone = normalizePhone(parsed.data.phone);
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Enter a valid phone number." },
+      { status: 400 },
+    );
+  }
+
+  const conflict = await findIdentityConflict({ email, phone });
+  if (conflict) {
+    return NextResponse.json({ error: conflict }, { status: 409 });
   }
 
   let referrer = null;
@@ -36,7 +49,8 @@ export async function POST(request: Request) {
   const user = await prisma.user.create({
     data: {
       email,
-      name: parsed.data.name,
+      name: parsed.data.name.trim(),
+      phone,
       passwordHash,
       referralCode,
       referredById: referrer?.id,
@@ -52,6 +66,8 @@ export async function POST(request: Request) {
     },
   });
 
+  const verification = await issueEmailVerification(user.id);
+
   if (referrer) {
     await prisma.referral.create({
       data: { referrerId: referrer.id, refereeId: user.id, level: 1 },
@@ -66,5 +82,9 @@ export async function POST(request: Request) {
     meta: { referredBy: referrer?.id ?? null },
   });
 
-  return NextResponse.json({ ok: true, id: user.id });
+  return NextResponse.json({
+    ok: true,
+    id: user.id,
+    verifyUrl: verification.verifyUrl,
+  });
 }

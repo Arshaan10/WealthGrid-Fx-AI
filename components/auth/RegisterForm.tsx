@@ -13,6 +13,7 @@ export function RegisterForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [verifyUrl, setVerifyUrl] = useState<string | null>(null);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -22,6 +23,7 @@ export function RegisterForm() {
     const payload = {
       name: form.get("name"),
       email: form.get("email"),
+      phone: form.get("phone"),
       password: form.get("password"),
       referralCode: form.get("referralCode"),
     };
@@ -36,6 +38,7 @@ export function RegisterForm() {
       setError(data.error ?? "Could not register");
       return;
     }
+    if (data.verifyUrl) setVerifyUrl(data.verifyUrl);
     const login = await signIn("credentials", {
       email: payload.email,
       password: payload.password,
@@ -46,13 +49,16 @@ export function RegisterForm() {
       router.push("/login");
       return;
     }
-    router.push("/dashboard");
+    router.push("/dashboard/profile");
     router.refresh();
   }
 
   return (
     <GlassCard>
       <SectionHeading kicker="Onboarding" title="Open a desk account" />
+      <p className="mt-3 text-sm text-muted">
+        One identity only: unique email and unique phone. Verify the inbox before depositing.
+      </p>
       <form onSubmit={onSubmit} className="mt-6 space-y-4">
         <label className="block text-sm">
           Full name
@@ -61,6 +67,15 @@ export function RegisterForm() {
         <label className="block text-sm">
           Email
           <input name="email" type="email" required className="mt-1 w-full rounded-lg px-3 py-2" />
+        </label>
+        <label className="block text-sm">
+          Phone
+          <input
+            name="phone"
+            required
+            placeholder="+15551234567"
+            className="mt-1 w-full rounded-lg px-3 py-2"
+          />
         </label>
         <label className="block text-sm">
           Password
@@ -81,6 +96,11 @@ export function RegisterForm() {
           />
         </label>
         {error ? <p className="text-sm text-danger">{error}</p> : null}
+        {verifyUrl ? (
+          <p className="break-all font-mono text-[11px] text-gold">
+            Verify inbox: <a href={verifyUrl}>{verifyUrl}</a>
+          </p>
+        ) : null}
         <GoldButton type="submit" disabled={busy} className="w-full">
           {busy ? "Opening…" : "Create account"}
         </GoldButton>
