@@ -28,9 +28,10 @@ export default async function AdminQueuePage() {
       <GlassCard>
         <h2 className="font-display text-3xl">Deposit queue</h2>
         <p className="mt-2 text-sm text-muted">
-          Members can connect a wallet, copy the company address, and submit a tx hash. Verified
-          matching USDT transfers auto-credit; the rest wait here. New withdrawals auto-approve
-          against treasury, then attempt an on-chain send when configured.
+          Happy-path deposits auto-credit after {chain.requiredConfirmations} on-chain
+          confirmations — no admin click. CONFIRMING rows are watched. Fallback approve remains
+          only for unmatched PENDING intents. Withdrawals auto-debit treasury, then CONFIRMING →
+          CONFIRMED when the payout tx is confirmed.
         </p>
       </GlassCard>
       <QueueTable
@@ -40,7 +41,7 @@ export default async function AdminQueuePage() {
           id: row.id,
           user: `${row.user.name} · ${row.user.email}`,
           amount: formatUsd(row.amount),
-          extra: [row.walletType, row.fromAddress, row.txHint].filter(Boolean).join(" · ") || row.walletType,
+          extra: [row.walletType, `${row.confirmations}/${row.requiredConfs}`, row.txHint].filter(Boolean).join(" · ") || row.walletType,
           status: row.status,
           when: formatDate(row.createdAt),
           pending: row.status === "PENDING",
@@ -64,8 +65,9 @@ export default async function AdminQueuePage() {
       <GlassCard pad={false} className="p-4 sm:p-6">
         <h3 className="mb-4 font-display text-2xl">Withdrawal history</h3>
         <p className="mb-4 text-sm text-muted">
-          Auto-approved treasury bookings. Status moves APPROVED → SENT when the company hot
-          wallet pays the net USDT, or FAILED_SEND if the chain transfer fails (retry below).
+          Auto-approved treasury bookings. Status moves APPROVED → CONFIRMING → CONFIRMED when
+          the company hot wallet pays the net USDT and the chain reaches the required
+          confirmations, or FAILED_SEND if the transfer fails (retry below).
           {!chain.payoutConfigured ? " On-chain send is not configured." : ""}
         </p>
         <WithdrawalHistoryTable

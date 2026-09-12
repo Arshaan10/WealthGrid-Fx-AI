@@ -4,11 +4,13 @@ import { isEvmAddress, isPrivateKeyHex, isTxHash, normalizeAddress, normalizePri
 import {
   getChainId,
   getCompanyWalletAddress,
+  getRequiredConfirmations,
   getRpcUrl,
   getUsdtAddress,
   getUsdtDecimals,
   isPayoutConfigured,
 } from "@/lib/chain";
+import { getRpcClient, getTxConfirmations } from "@/lib/onchain";
 import { prisma } from "@/lib/prisma";
 import { formatUsd } from "@/lib/utils";
 
@@ -45,14 +47,17 @@ export async function attemptOnChainPayout(withdrawalId: string): Promise<Payout
   if (!existing) {
     throw new Error("Withdrawal not found.");
   }
-  if (existing.status === "SENT" && isTxHash(existing.txHash)) {
+  if ((existing.status === "SENT" || existing.status === "CONFIRMED") && isTxHash(existing.txHash)) {
     return {
-      status: "SENT",
+      status: existing.status,
       txHash: existing.txHash,
       sendConfigured: true,
       sendError: null,
       message: "Already sent on-chain.",
     };
+  }
+  if (existing.status === "CONFIRMING" && isTxHash(existing.txHash)) {
+    return settlePayoutById(existing.id);
   }
   if (!isPayoutConfigured()) {
     return payoutNotConfigured(existing.status);
@@ -81,14 +86,17 @@ export async function attemptOnChainPayout(withdrawalId: string): Promise<Payout
 
   if (claimed.count === 0) {
     const latest = await prisma.withdrawalRequest.findUnique({ where: { id: withdrawalId } });
-    if (latest?.status === "SENT" && latest.txHash) {
+    if ((latest?.status === "SENT" || latest?.status === "CONFIRMED") && latest.txHash) {
       return {
-        status: "SENT",
+        status: latest.status,
         txHash: latest.txHash,
         sendConfigured: true,
         sendError: null,
         message: "Already sent on-chain.",
       };
+    }
+    if (latest?.status === "CONFIRMING" && latest.txHash) {
+      return settlePayoutById(latest.id);
     }
     if (latest?.status === "SENDING") {
       return {
@@ -115,33 +123,28 @@ export async function attemptOnChainPayout(withdrawalId: string): Promise<Payout
 
   try {
     const txHash = await transferUsdt(row.toAddress, row.netAmount.toString());
-    const updated = await prisma.withdrawalRequest.update({
+    const requiredConfs = getRequiredConfirmations();
+    await prisma.withdrawalRequest.update({
       where: { id: withdrawalId },
       data: {
-        status: "SENT",
+        status: "CONFIRMING",
         txHash,
-        sentAt: new Date(),
+        requiredConfs,
         sendError: null,
         note: row.note?.includes("on-chain")
           ? row.note
-          : `${row.note ?? "Auto-approved — settled from company treasury"} · sent on-chain`,
+          : `${row.note ?? "Auto-approved — settled from company treasury"} · payout broadcast`,
       },
     });
     await prisma.auditLog.create({
       data: {
-        action: "WITHDRAWAL_SENT",
+        action: "WITHDRAWAL_BROADCAST",
         entity: "WithdrawalRequest",
         entityId: withdrawalId,
         meta: JSON.stringify({ txHash, net: row.netAmount.toString() }),
       },
     });
-    return {
-      status: updated.status,
-      txHash: updated.txHash,
-      sendConfigured: true,
-      sendError: null,
-      message: `On-chain USDT sent. Tx ${txHash}`,
-    };
+    return settlePayoutById(withdrawalId);
   } catch (error) {
     const sendError = error instanceof Error ? error.message : "On-chain send failed";
     const updated = await prisma.withdrawalRequest.update({
@@ -220,7 +223,7 @@ async function transferUsdt(toAddress: string | null, netAmount: string) {
     );
   }
 
-  return walletClient.writeContract({
+  const hash = await walletClient.writeContract({
     chain: { id: chainId, name: "configured", nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 }, rpcUrls: { default: { http: [rpcUrl] } } },
     account,
     address: token as Address,
@@ -228,4 +231,103 @@ async function transferUsdt(toAddress: string | null, netAmount: string) {
     functionName: "transfer",
     args: [normalizeAddress(toAddress) as Address, amount],
   });
+  const publicWait = getRpcClient();
+  await publicWait.waitForTransactionReceipt({ hash, timeout: 60_000 });
+  return hash;
+}
+
+export async function settlePayoutById(withdrawalId: string): Promise<PayoutResult> {
+  const row = await prisma.withdrawalRequest.findUnique({ where: { id: withdrawalId } });
+  if (!row) {
+    throw new Error("Withdrawal not found.");
+  }
+  if ((row.status === "SENT" || row.status === "CONFIRMED") && row.txHash) {
+    return {
+      status: row.status,
+      txHash: row.txHash,
+      sendConfigured: true,
+      sendError: null,
+      message: "Already confirmed on-chain.",
+    };
+  }
+  if (!isTxHash(row.txHash)) {
+    return {
+      status: row.status,
+      txHash: row.txHash,
+      sendConfigured: isPayoutConfigured(),
+      sendError: row.sendError,
+      message: "No payout transaction to confirm yet.",
+    };
+  }
+
+  try {
+    const progress = await getTxConfirmations(row.txHash);
+    if (!progress.confirmed) {
+      const updated = await prisma.withdrawalRequest.update({
+        where: { id: withdrawalId },
+        data: {
+          status: "CONFIRMING",
+          confirmations: progress.confirmations,
+          requiredConfs: progress.required,
+        },
+      });
+      return {
+        status: updated.status,
+        txHash: updated.txHash,
+        sendConfigured: true,
+        sendError: null,
+        message: `Payout broadcast. Waiting for ${progress.required} confirmations (${progress.confirmations} so far).`,
+      };
+    }
+
+    const updated = await prisma.withdrawalRequest.update({
+      where: { id: withdrawalId },
+      data: {
+        status: "CONFIRMED",
+        confirmations: progress.confirmations,
+        requiredConfs: progress.required,
+        sentAt: row.sentAt ?? new Date(),
+        sendError: null,
+        note: `${row.note ?? "Auto-approved — settled from company treasury"} · confirmed on-chain`,
+      },
+    });
+    await prisma.auditLog.create({
+      data: {
+        action: "WITHDRAWAL_CONFIRMED",
+        entity: "WithdrawalRequest",
+        entityId: withdrawalId,
+        meta: JSON.stringify({ txHash: row.txHash, confirmations: progress.confirmations }),
+      },
+    });
+    return {
+      status: updated.status,
+      txHash: updated.txHash,
+      sendConfigured: true,
+      sendError: null,
+      message: `On-chain USDT confirmed after ${progress.confirmations} confirmations. Tx ${row.txHash}`,
+    };
+  } catch (error) {
+    const sendError = error instanceof Error ? error.message : "Could not read payout confirmations";
+    return {
+      status: row.status,
+      txHash: row.txHash,
+      sendConfigured: true,
+      sendError,
+      message: sendError,
+    };
+  }
+}
+
+export async function settlePayoutsForUser(userId: string) {
+  const open = await prisma.withdrawalRequest.findMany({
+    where: { userId, status: "CONFIRMING", txHash: { not: null } },
+  });
+  const settled: string[] = [];
+  for (const row of open) {
+    const next = await settlePayoutById(row.id);
+    if (next.status === "CONFIRMED" || next.status === "SENT") {
+      settled.push(row.id);
+    }
+  }
+  return settled;
 }

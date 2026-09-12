@@ -7,6 +7,7 @@ import { GoldButton } from "@/components/brand/GoldButton";
 import { CompanyWalletCard } from "@/components/desk/CompanyWalletCard";
 import { WalletConnectButton } from "@/components/desk/WalletConnectButton";
 import type { PublicChainConfig } from "@/lib/chain";
+import { formatUsd } from "@/lib/utils";
 
 export function DepositForm({ chain }: { chain: PublicChainConfig }) {
   const router = useRouter();
@@ -43,11 +44,17 @@ export function DepositForm({ chain }: { chain: PublicChainConfig }) {
       return;
     }
     if (data.verified) {
-      setOk("On-chain USDT verified. Your wallet was credited.");
+      setOk(
+        `On-chain USDT confirmed (${data.confirmations}/${data.requiredConfirmations} confirmations). Trading ${formatUsd(data.wallets?.trading?.available ?? 0)} · Network ${formatUsd(data.wallets?.network?.available ?? 0)}.`,
+      );
+    } else if (data.status === "CONFIRMING") {
+      setOk(
+        `Watching the chain — ${data.confirmations ?? 0}/${data.requiredConfirmations ?? chain.requiredConfirmations} confirmations. The chosen vault credits automatically when confirmed.`,
+      );
     } else if (data.txHash) {
-      setOk("Intent recorded with your transaction hash. Admin will confirm if the chain could not auto-verify.");
+      setOk("Tx recorded. The watcher will auto-credit after confirmations once RPC can see the transfer.");
     } else {
-      setOk("Intent recorded. Send USDT to the company address, then submit the tx hash.");
+      setOk("Intent recorded. Send USDT to the company address — auto-credit runs after on-chain confirmations.");
     }
     router.refresh();
   }
@@ -121,9 +128,9 @@ export function DepositForm({ chain }: { chain: PublicChainConfig }) {
           ) : null}
         </div>
         <p className="text-xs leading-relaxed text-muted">
-          Auto-credit runs only when a public RPC can verify a matching USDT transfer to the
-          company address. Otherwise the hash is stored for admin confirmation. Forex remains
-          high risk — this is not a promise of profit.
+          Auto-credit runs when a public RPC sees a matching USDT transfer and it reaches{" "}
+          {chain.requiredConfirmations} confirmations. No admin click on that happy path. Forex
+          remains high risk — this is not a promise of profit.
         </p>
         {error ? <p className="text-sm text-danger">{error}</p> : null}
         {ok ? <p className="text-sm text-success">{ok}</p> : null}

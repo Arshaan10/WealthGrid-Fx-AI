@@ -9,7 +9,13 @@ import {
   type Hash,
 } from "viem";
 import { addressesEqual, isEvmAddress, isTxHash, normalizeAddress } from "@/lib/address";
-import { getCompanyWalletAddress, getRpcUrl, getUsdtAddress, getUsdtDecimals } from "@/lib/chain";
+import {
+  getCompanyWalletAddress,
+  getRequiredConfirmations,
+  getRpcUrl,
+  getUsdtAddress,
+  getUsdtDecimals,
+} from "@/lib/chain";
 
 const transferEvent = parseAbiItem(
   "event Transfer(address indexed from, address indexed to, uint256 value)",
@@ -40,11 +46,37 @@ function requireWatchConfig() {
   };
 }
 
-export function getPublicRpcClient() {
-  const { rpcUrl } = requireWatchConfig();
+export function getRpcClient() {
+  const rpcUrl = getRpcUrl();
+  if (!rpcUrl) {
+    throw new Error("RPC_URL is required to read the chain.");
+  }
   return createPublicClient({
     transport: http(rpcUrl),
   });
+}
+
+export function getPublicRpcClient() {
+  return getRpcClient();
+}
+
+export async function getTxConfirmations(txHash: string) {
+  if (!isTxHash(txHash)) {
+    throw new Error("Enter a valid transaction hash.");
+  }
+  const client = getRpcClient();
+  const receipt = await client.getTransactionReceipt({ hash: normalizeAddress(txHash) as Hash });
+  const latest = await client.getBlockNumber();
+  const confirmations = Number(latest - receipt.blockNumber) + 1;
+  const required = getRequiredConfirmations();
+  return {
+    found: true as const,
+    confirmations: Number.isFinite(confirmations) ? Math.max(confirmations, 0) : 0,
+    required,
+    confirmed: receipt.status === "success" && confirmations >= required,
+    status: receipt.status,
+    blockNumber: Number(receipt.blockNumber),
+  };
 }
 
 export async function verifyUsdtDepositTx(txHash: string): Promise<VerifiedTransfer> {

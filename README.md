@@ -76,6 +76,7 @@ WALLETCONNECT_PROJECT_ID=""
 | `COMPANY_WALLET_ADDRESS` | Server (+ optional `NEXT_PUBLIC_`) | Public hot-wallet / deposit address. Shown in member + admin UI. |
 | `COMPANY_WALLET_PRIVATE_KEY` | **Server only** | Never commit a real key. Must match `COMPANY_WALLET_ADDRESS`. Build does **not** require this. |
 | `WALLETCONNECT_PROJECT_ID` | Server (passed into the client provider) | From [WalletConnect Cloud](https://cloud.walletconnect.com). Injected wallets work without it. |
+| `CONFIRMATIONS_REQUIRED` | Server (+ optional `NEXT_PUBLIC_`) | Blocks before a deposit auto-credits or a payout is marked **CONFIRMED**. Default **3** on chain 97, **15** on chain 56. |
 
 `NEXT_PUBLIC_*` aliases are documented in `.env.example` if you want build-time inlining. The app also reads the server names and passes public values into the Wagmi provider from the root layout.
 
@@ -89,7 +90,8 @@ WALLETCONNECT_PROJECT_ID=""
 4. Create a throwaway testnet wallet. Fund it with test BNB (gas) and test USDT.
 5. Set `COMPANY_WALLET_ADDRESS` and `COMPANY_WALLET_PRIVATE_KEY` for that wallet.
 6. Fund the **DB treasury** on `/admin/treasury` (ledger) **and** the hot wallet (on-chain).
-7. Connect a member wallet on deposit/withdraw/profile. Deposit by sending test USDT to the company address and submitting the tx hash. Withdraw auto-approves in the DB, then attempts the USDT transfer.
+7. Set `CONFIRMATIONS_REQUIRED` (3 is the testnet default).
+8. Connect a member wallet on deposit/withdraw/profile. Deposit by sending test USDT to the company address. After the required confirmations the watcher auto-credits Trading or Network. Withdraw auto-debits the vault, then confirms the payout tx.
 
 Without a private key / RPC / USDT contract, skip steps 3–5. The desk stays understandable end-to-end on the seeded demo accounts.
 
@@ -137,8 +139,9 @@ If either check fails, **nothing is written** and the member sees a clear error 
 3. Gross amount is **debited immediately** from the selected wallet.
 4. Fee (`config/rewards.ts` → `withdrawal.feePct`, currently **5%**) is withheld from the request.
 5. Treasury is debited the **net**. A `WithdrawalRequest` is stored as **APPROVED**.
-6. If payout env is complete, the server attempts a USDT `transfer` of the **net** amount. Status becomes **SENT** (tx hash stored) or **FAILED_SEND** (admin retry on `/admin/queue`). Sends are **idempotent** — a row with a tx hash is never paid twice.
+6. If payout env is complete, the server broadcasts a USDT `transfer` of the **net** amount (`CONFIRMING`). After `CONFIRMATIONS_REQUIRED` the watcher marks it **CONFIRMED**. **FAILED_SEND** can be retried on `/admin/queue`. Sends are **idempotent** — a row with a tx hash is never paid twice.
 7. If no private key / RPC / token / company address is set, the row stays **APPROVED** and the UI shows **on-chain send not configured**.
+8. Both Trading and Network vault balances refresh on the withdraw page after a successful debit.
 
 Example: withdraw **$100** from Trading → member available **−$100**, fee **$5**, treasury **−$95**, then an on-chain USDT transfer of **95** when configured.
 
@@ -146,8 +149,8 @@ Example: withdraw **$100** from Trading → member available **−$100**, fee **
 
 1. Member connects a wallet and copies the company address.
 2. They send USDT on the configured chain and record amount + tx hash (or tap **Watch recent transfer** when RPC is set).
-3. If the public RPC verifies a matching USDT transfer to the company address, the desk **auto-credits**. The same tx hash cannot be reused.
-4. Otherwise the hash is stored for admin confirm on `/admin/queue`. Approve credits the member wallet. No treasury movement.
+3. The deposit watcher (`/api/desk/sync`, also run on dashboard/deposit/withdraw load) checks the public RPC. When a matching USDT transfer reaches `CONFIRMATIONS_REQUIRED`, the chosen vault is **auto-credited**. No admin click on that happy path. The same tx hash cannot be reused.
+4. Unmatched intents stay **PENDING** for admin monitoring. Approve remains a fallback only. No treasury movement on deposits.
 
 ### Legacy reserved withdrawals
 
@@ -176,7 +179,8 @@ lib/withdraw.ts      # auto-approve + treasury cover check
 lib/treasury.ts      # payout pool helpers
 lib/chain.ts         # public chain / company wallet config
 lib/payout.ts        # idempotent company-wallet USDT send
-lib/onchain.ts       # deposit verify + recent Transfer watch
+lib/onchain.ts       # deposit verify + confirmation count + Transfer watch
+lib/desk-sync.ts     # member deposit/payout watcher used by /api/desk/sync
 prisma/schema.prisma # SQLite-first, Postgres-ready models
 prisma/seed.ts
 ```

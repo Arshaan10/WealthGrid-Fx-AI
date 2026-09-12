@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { recordDepositIntent } from "@/lib/deposit-credit";
 import { amountSchema } from "@/lib/validators";
-import type { WalletType } from "@/lib/wallets";
+import { getWalletSnapshot, type WalletType } from "@/lib/wallets";
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -28,6 +28,7 @@ export async function POST(request: Request) {
       watch: parsed.data.watch,
     });
 
+    const wallets = await getWalletSnapshot(session.user.id);
     return NextResponse.json({
       ok: true,
       id: result.intent.id,
@@ -36,6 +37,9 @@ export async function POST(request: Request) {
       verified: result.verified,
       reused: result.reused,
       verifyError: result.verifyError ?? null,
+      confirmations: result.intent.confirmations,
+      requiredConfirmations: result.intent.requiredConfs,
+      wallets,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not record deposit";

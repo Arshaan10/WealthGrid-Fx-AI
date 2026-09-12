@@ -24,14 +24,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Withdrawal not found." }, { status: 404 });
   }
 
-  if (row.status === "SENDING") {
+  if (row.status === "SENDING" && !row.txHash) {
     await prisma.withdrawalRequest.update({
       where: { id: row.id },
       data: { status: "FAILED_SEND", sendError: "Send lock cleared by admin retry." },
     });
   }
 
-  if (!isPayoutConfigured() && row.status !== "SENT") {
+  if (!isPayoutConfigured() && row.status !== "SENT" && row.status !== "CONFIRMED") {
     return NextResponse.json(
       { error: "On-chain send not configured. Set the company wallet env vars first." },
       { status: 400 },

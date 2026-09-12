@@ -4,6 +4,7 @@ export function StatusPill({ status }: { status: string }) {
   const tone =
     status === "APPROVED" ||
     status === "SENT" ||
+    status === "CONFIRMED" ||
     status === "PAID" ||
     status === "ACTIVE" ||
     status === "published" ||

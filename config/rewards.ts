@@ -38,7 +38,7 @@ export const referrals = {
 /** Centralized withdrawal fee. Applied to the requested (gross) amount. */
 export const withdrawal = {
   feePct: 5,
-  note: "A 5% fee is taken from the requested amount. The company treasury books the net; the company hot wallet sends USDT when chain env is configured.",
+  note: "A 5% fee is taken from the requested amount. The company treasury books the net immediately. The company hot wallet sends USDT when chain env is configured; status becomes CONFIRMED after the required block confirmations.",
 } as const;
 
 export const loyalty = {

@@ -1,8 +1,25 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { DbClient } from "@/lib/treasury";
+import { asNumber } from "@/lib/utils";
 
 export type WalletType = "TRADING" | "NETWORK";
+
+export async function getWalletSnapshot(userId: string) {
+  const wallets = await prisma.walletBalance.findMany({ where: { userId } });
+  const trading = wallets.find((row) => row.type === "TRADING");
+  const network = wallets.find((row) => row.type === "NETWORK");
+  return {
+    trading: {
+      available: asNumber(trading?.available ?? 0),
+      pending: asNumber(trading?.pending ?? 0),
+    },
+    network: {
+      available: asNumber(network?.available ?? 0),
+      pending: asNumber(network?.pending ?? 0),
+    },
+  };
+}
 
 export async function getOrCreateWallet(userId: string, type: WalletType, db: DbClient = prisma) {
   return db.walletBalance.upsert({

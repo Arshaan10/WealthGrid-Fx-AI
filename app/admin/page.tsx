@@ -13,9 +13,9 @@ export default async function AdminHomePage() {
     await Promise.all([
       prisma.user.count(),
       prisma.packageActivation.count({ where: { status: "ACTIVE" } }),
-      prisma.depositIntent.count({ where: { status: "PENDING" } }),
+      prisma.depositIntent.count({ where: { status: { in: ["PENDING", "CONFIRMING"] } } }),
       prisma.withdrawalRequest.count({
-        where: { status: { in: ["APPROVED", "SENDING", "SENT", "FAILED_SEND"] } },
+        where: { status: { in: ["APPROVED", "SENDING", "CONFIRMING", "SENT", "CONFIRMED", "FAILED_SEND"] } },
       }),
       prisma.announcement.count({ where: { published: true } }),
       getOrCreateTreasury(),
@@ -26,7 +26,7 @@ export default async function AdminHomePage() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Users" value={String(users)} />
         <StatCard label="Active packages" value={String(activations)} />
-        <StatCard label="Pending deposits" value={String(pendingDeposits)} />
+        <StatCard label="Open deposits" value={String(pendingDeposits)} hint="Pending + confirming" />
         <StatCard
           label="Treasury"
           value={formatUsd(treasury.balance)}
@@ -42,9 +42,9 @@ export default async function AdminHomePage() {
             Treasury
           </Link>
           . Member withdrawals auto-approve and debit that pool immediately,
-          then attempt a company-wallet USDT send when chain env is set.
-          Deposit intents with a verifiable tx hash can auto-credit; the rest
-          still need review on the{" "}
+          then broadcast a company-wallet USDT send when chain env is set.
+          Deposits auto-credit after on-chain confirmations; only unmatched
+          intents still need review on the{" "}
           <Link href="/admin/queue" className="text-gold hover:text-gold-bright">
             deposit queue
           </Link>

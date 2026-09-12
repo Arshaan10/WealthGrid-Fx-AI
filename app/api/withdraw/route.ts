@@ -5,6 +5,7 @@ import { isEvmAddress } from "@/lib/address";
 import { isPayoutConfigured } from "@/lib/chain";
 import { attemptOnChainPayout } from "@/lib/payout";
 import { amountSchema } from "@/lib/validators";
+import { getWalletSnapshot } from "@/lib/wallets";
 import { executeAutoWithdrawal } from "@/lib/withdraw";
 
 export async function POST(request: Request) {
@@ -37,6 +38,7 @@ export async function POST(request: Request) {
     });
 
     const payout = await attemptOnChainPayout(result.id);
+    const wallets = await getWalletSnapshot(session.user.id);
 
     return NextResponse.json({
       ok: true,
@@ -46,6 +48,7 @@ export async function POST(request: Request) {
       sendConfigured: payout.sendConfigured,
       sendError: payout.sendError,
       message: payout.message,
+      wallets,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Withdrawal failed";

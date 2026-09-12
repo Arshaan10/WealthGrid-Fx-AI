@@ -82,6 +82,15 @@ export function hasPayoutKeyConfigured() {
   return isPrivateKeyHex(process.env.COMPANY_WALLET_PRIVATE_KEY);
 }
 
+export function getRequiredConfirmations(chainId = getChainId()) {
+  const raw = readEnv("CONFIRMATIONS_REQUIRED", "NEXT_PUBLIC_CONFIRMATIONS_REQUIRED");
+  if (raw) {
+    const parsed = Number(raw);
+    if (Number.isInteger(parsed) && parsed >= 1) return parsed;
+  }
+  return chainId === BSC_MAINNET_ID ? 15 : 3;
+}
+
 export function isWatchConfigured() {
   return Boolean(getRpcUrl() && getUsdtAddress() && getCompanyWalletAddress());
 }
@@ -103,6 +112,7 @@ export type PublicChainConfig = {
   explorerUrl: string;
   payoutConfigured: boolean;
   watchConfigured: boolean;
+  requiredConfirmations: number;
 };
 
 export function getPublicChainConfig(): PublicChainConfig {
@@ -122,6 +132,7 @@ export function getPublicChainConfig(): PublicChainConfig {
     explorerUrl: getExplorerUrl(chainId),
     payoutConfigured: isPayoutConfigured(),
     watchConfigured: isWatchConfigured(),
+    requiredConfirmations: getRequiredConfirmations(chainId),
   };
 }
 
