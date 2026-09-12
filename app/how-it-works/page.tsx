@@ -35,8 +35,8 @@ const steps = [
   },
   {
     n: "06",
-    title: "Request a withdrawal",
-    body: "Withdrawal reserves available funds and queues a DEX placeholder for the admin desk.",
+    title: "Withdraw from the desk",
+    body: "Confirming deducts available balance immediately and auto-approves against the company treasury. Wallet-connect on-chain send is later.",
   },
 ];
 
@@ -46,7 +46,7 @@ export default function HowItWorksPage() {
       <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
         <SectionHeading
           kicker="Desk choreography"
-          title="From register to reserved withdrawal"
+          title="From register to auto-approved withdrawal"
           lede="Six beats. The bot aesthetic is atmospheric; the ledger is the system of record."
         />
         <ol className="mt-10 grid gap-4 md:grid-cols-2">

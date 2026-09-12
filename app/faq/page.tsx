@@ -17,7 +17,11 @@ const faqs = [
   },
   {
     q: "Can I deposit USDT on-chain today?",
-    a: "Not in Phase 1. The deposit and withdraw screens record intents and show a “connect wallet (coming next)” placeholder.",
+    a: "Not yet. Deposit still records an admin-reviewed intent. Withdrawals auto-approve against the company treasury and deduct your dashboard balance immediately. Wallet-connect on-chain send ships later.",
+  },
+  {
+    q: "What happens if the company treasury is empty?",
+    a: "The withdrawal is blocked and your wallet is not deducted. Admins top up the payout pool on the Treasury desk first.",
   },
   {
     q: "Where do lifetime records live?",

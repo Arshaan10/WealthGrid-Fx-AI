@@ -30,3 +30,8 @@ export const announcementSchema = z.object({
   body: z.string().min(8).max(4000),
   published: z.boolean().optional(),
 });
+
+export const treasuryTopupSchema = z.object({
+  amount: z.coerce.number().positive().max(10_000_000),
+  note: z.string().max(240).optional(),
+});

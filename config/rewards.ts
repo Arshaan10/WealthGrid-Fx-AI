@@ -35,6 +35,12 @@ export const referrals = {
   ] as const,
 } as const;
 
+/** Centralized withdrawal fee. Applied to the requested (gross) amount. */
+export const withdrawal = {
+  feePct: 5,
+  note: "A 5% fee is taken from the requested amount. The company treasury pays the net to the member. Wallet-connect / on-chain send is later.",
+} as const;
+
 export const loyalty = {
   cadence: "weekly",
   note: "Loyalty credits are scheduled weekly against qualifying active packages.",
@@ -108,7 +114,7 @@ export const giftCatalog = [
 export const riskDisclaimer = {
   short:
     "Forex and leveraged products involve substantial risk of loss. Figures on this site are structural illustrations, not guarantees of profit.",
-  long: `Whealth Grid Fx AI presents package rates, network percentages, ranks, and gift catalogs as a configured reward structure for product education. Nothing here is a promise of profit, a risk-free return, or investment advice. Foreign-exchange and CFD-style exposure can result in the loss of some or all capital. Past or modelled performance is not indicative of future results. Deposits and withdrawals will settle through a DEX in a later phase; Phase 1 records intents only. Participate only with capital you can afford to lose and seek independent advice where required.`,
+  long: `Whealth Grid Fx AI presents package rates, network percentages, ranks, and gift catalogs as a configured reward structure for product education. Nothing here is a promise of profit, a risk-free return, or investment advice. Foreign-exchange and CFD-style exposure can result in the loss of some or all capital. Past or modelled performance is not indicative of future results. Member withdrawals auto-approve against the company treasury (payout pool) and deduct available wallet balance immediately; on-chain wallet-connect settlement ships later. Deposits remain admin-reviewed intents in this phase. Participate only with capital you can afford to lose and seek independent advice where required.`,
 } as const;
 
 export function packageBySlug(slug: string) {

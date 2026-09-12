@@ -31,10 +31,11 @@ model User {
   referralsGot  Referral[]          @relation("Referee")
   rewardPayouts RewardPayout[]
   rankProgress  RankProgress?
-  deposits      DepositIntent[]
-  withdrawals   WithdrawalRequest[]
-  announcements Announcement[]
-  auditLogs     AuditLog[]
+  deposits          DepositIntent[]
+  withdrawals       WithdrawalRequest[]
+  announcements     Announcement[]
+  auditLogs         AuditLog[]
+  treasuryMoves     TreasuryMovement[]
 }
 
 model WalletBalance {
@@ -55,7 +56,7 @@ model LedgerEntry {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   walletType   String
   direction    String // CREDIT | DEBIT
-  category     String // DEPOSIT | WITHDRAWAL | PACKAGE | REWARD | ADJUSTMENT | REFERRAL
+  category     String // DEPOSIT | WITHDRAWAL | PACKAGE | REWARD | ADJUSTMENT | REFERRAL | FEE
   amount       Decimal
   balanceAfter Decimal
   description  String
@@ -139,14 +140,38 @@ model WithdrawalRequest {
   id         String    @id @default(cuid())
   userId     String
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  amount     Decimal
+  amount     Decimal // gross deducted from the member wallet
+  feeAmount  Decimal   @default(0)
+  netAmount  Decimal   @default(0) // treasury payout after fee
   walletType String
   toAddress  String?
-  status     String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  status     String    @default("APPROVED") // PENDING (legacy) | APPROVED | REJECTED
   note       String?
   createdAt  DateTime  @default(now())
   reviewedAt DateTime?
   reviewedBy String?
+}
+
+model Treasury {
+  id        String             @id @default("company")
+  balance   Decimal            @default(0)
+  updatedAt DateTime           @updatedAt
+  movements TreasuryMovement[]
+}
+
+model TreasuryMovement {
+  id           String   @id @default(cuid())
+  treasuryId   String   @default("company")
+  treasury     Treasury @relation(fields: [treasuryId], references: [id], onDelete: Cascade)
+  direction    String // CREDIT | DEBIT
+  category     String // TOPUP | PAYOUT | ADJUSTMENT
+  amount       Decimal
+  balanceAfter Decimal
+  description  String
+  refId        String?
+  actorId      String?
+  actor        User?    @relation(fields: [actorId], references: [id])
+  createdAt    DateTime @default(now())
 }
 
 model Announcement {

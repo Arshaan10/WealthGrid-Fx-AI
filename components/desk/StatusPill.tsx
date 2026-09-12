@@ -2,9 +2,14 @@ import { cn } from "@/lib/utils";
 
 export function StatusPill({ status }: { status: string }) {
   const tone =
-    status === "APPROVED" || status === "PAID" || status === "ACTIVE" || status === "published"
+    status === "APPROVED" ||
+    status === "PAID" ||
+    status === "ACTIVE" ||
+    status === "published" ||
+    status === "CREDIT" ||
+    status === "TOPUP"
       ? "text-success border-success/30 bg-success/10"
-      : status === "REJECTED" || status === "CANCELLED"
+      : status === "REJECTED" || status === "CANCELLED" || status === "DEBIT" || status === "PAYOUT"
         ? "text-danger border-danger/30 bg-danger/10"
         : "text-gold border-gold-line bg-gold-dim";
 

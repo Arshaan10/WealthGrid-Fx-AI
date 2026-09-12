@@ -22,9 +22,10 @@ export const userNav = [
 
 export const adminNav = [
   { href: "/admin", label: "Overview" },
+  { href: "/admin/treasury", label: "Treasury" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/packages", label: "Packages" },
-  { href: "/admin/queue", label: "DEX queue" },
+  { href: "/admin/queue", label: "Deposit queue" },
   { href: "/admin/rewards", label: "Reward config" },
   { href: "/admin/ranks", label: "Ranks" },
   { href: "/admin/announcements", label: "Announcements" },

@@ -12,7 +12,7 @@ export default function AboutPage() {
         <SectionHeading
           kicker="House"
           title="Mission & vision"
-          lede="Whealth Grid Fx AI is built as a premium desk — not a generic yield brochure. Phase 1 is the control plane: identity, packages, wallets, ranks, and an admin queue."
+          lede="Whealth Grid Fx AI is built as a premium desk — not a generic yield brochure. Phase 1 is the control plane: identity, packages, wallets, ranks, treasury payouts, and an admin deposit queue."
         />
         <div className="mt-10 grid gap-6 md:grid-cols-2">
           <GlassCard>

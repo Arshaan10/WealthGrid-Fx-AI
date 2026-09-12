@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { packages } from "../config/rewards";
+import { packages, withdrawal } from "../config/rewards";
 
 const prisma = new PrismaClient();
 
@@ -91,7 +91,7 @@ async function main() {
   await ensureWallets(admin.id, { available: "0", pending: "0" }, { available: "0", pending: "0" });
   await ensureWallets(
     demo.id,
-    { available: "420.00", pending: "80.00" },
+    { available: "420.00", pending: "0" },
     { available: "63.50", pending: "0" },
   );
   await ensureWallets(
@@ -192,7 +192,7 @@ async function main() {
           category: "WITHDRAWAL",
           amount: "80",
           balanceAfter: "420.00",
-          description: "Withdrawal reserved — pending DEX settlement",
+          description: "Withdrawal auto-approved — treasury payout (seed)",
         },
       ],
     });
@@ -238,15 +238,94 @@ async function main() {
     });
   }
 
-  if ((await prisma.withdrawalRequest.count()) === 0) {
-    await prisma.withdrawalRequest.create({
+  const seedGross = 80;
+  const seedFee = Number(((seedGross * withdrawal.feePct) / 100).toFixed(2));
+  const seedNet = Number((seedGross - seedFee).toFixed(2));
+
+  const existingWithdrawal = await prisma.withdrawalRequest.findFirst({
+    where: { userId: demo.id },
+    orderBy: { createdAt: "asc" },
+  });
+  let seedWithdrawalId = existingWithdrawal?.id;
+  if (!existingWithdrawal) {
+    const created = await prisma.withdrawalRequest.create({
       data: {
         userId: demo.id,
-        amount: "80",
+        amount: String(seedGross),
+        feeAmount: String(seedFee),
+        netAmount: String(seedNet),
         walletType: "TRADING",
         toAddress: "0xDEMO00000000000000000000000000000000001",
-        status: "PENDING",
-        note: "Reserved on trading wallet — DEX payout later",
+        status: "APPROVED",
+        reviewedAt: new Date(),
+        note: "Seeded auto-approved payout from company treasury",
+      },
+    });
+    seedWithdrawalId = created.id;
+  } else if (existingWithdrawal.status === "PENDING") {
+    await prisma.withdrawalRequest.update({
+      where: { id: existingWithdrawal.id },
+      data: {
+        feeAmount: String(seedFee),
+        netAmount: String(seedNet),
+        status: "APPROVED",
+        reviewedAt: new Date(),
+        note: "Migrated seed withdrawal — auto-approved against treasury",
+      },
+    });
+  }
+
+  const treasury = await prisma.treasury.upsert({
+    where: { id: "company" },
+    update: {},
+    create: { id: "company", balance: "0" },
+  });
+
+  if ((await prisma.treasuryMovement.count()) === 0) {
+    const opening = 10000;
+    const afterTopup = opening;
+    const afterPayout = Number((opening - seedNet).toFixed(2));
+    await prisma.treasury.update({
+      where: { id: "company" },
+      data: { balance: String(afterPayout) },
+    });
+    await prisma.treasuryMovement.createMany({
+      data: [
+        {
+          treasuryId: "company",
+          direction: "CREDIT",
+          category: "TOPUP",
+          amount: String(opening),
+          balanceAfter: String(afterTopup),
+          description: "Seeded company payout pool",
+          actorId: admin.id,
+        },
+        {
+          treasuryId: "company",
+          direction: "DEBIT",
+          category: "PAYOUT",
+          amount: String(seedNet),
+          balanceAfter: String(afterPayout),
+          description: "Seeded demo withdrawal payout",
+          refId: seedWithdrawalId,
+          actorId: admin.id,
+        },
+      ],
+    });
+  } else if (Number(treasury.balance.toString()) === 0) {
+    await prisma.treasury.update({
+      where: { id: "company" },
+      data: { balance: "10000" },
+    });
+    await prisma.treasuryMovement.create({
+      data: {
+        treasuryId: "company",
+        direction: "CREDIT",
+        category: "TOPUP",
+        amount: "10000",
+        balanceAfter: "10000",
+        description: "Seeded company payout pool",
+        actorId: admin.id,
       },
     });
   }
@@ -254,8 +333,8 @@ async function main() {
   if ((await prisma.announcement.count()) === 0) {
     await prisma.announcement.create({
       data: {
-        title: "Phase 1 desk is live",
-        body: "Welcome to Whealth Grid Fx AI. Package activation, wallets, and the admin queue are online. DEX wallet connect arrives in the next phase — deposit and withdraw intents are recorded only.",
+        title: "Treasury payouts are live",
+        body: "Welcome to Whealth Grid Fx AI. Withdrawals deduct your available balance immediately and auto-approve against the company treasury. Wallet-connect on-chain send arrives later. Deposit intents still go to the admin queue.",
         published: true,
         authorId: admin.id,
       },
@@ -267,7 +346,7 @@ async function main() {
       actorId: admin.id,
       action: "SEED",
       entity: "SYSTEM",
-      meta: JSON.stringify({ message: "Phase 1 seed applied" }),
+      meta: JSON.stringify({ message: "Treasury auto-withdraw seed applied" }),
     },
   });
 

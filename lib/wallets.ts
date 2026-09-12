@@ -1,10 +1,11 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import type { DbClient } from "@/lib/treasury";
 
 export type WalletType = "TRADING" | "NETWORK";
 
-export async function getOrCreateWallet(userId: string, type: WalletType) {
-  return prisma.walletBalance.upsert({
+export async function getOrCreateWallet(userId: string, type: WalletType, db: DbClient = prisma) {
+  return db.walletBalance.upsert({
     where: { userId_type: { userId, type } },
     update: {},
     create: { userId, type, available: 0, pending: 0 },
@@ -121,16 +122,18 @@ export async function releaseReservation(input: {
   type: WalletType;
   amount: Prisma.Decimal | string | number;
   restoreAvailable: boolean;
+  db?: DbClient;
 }) {
+  const db = input.db ?? prisma;
   const amount = new Prisma.Decimal(input.amount);
-  const wallet = await getOrCreateWallet(input.userId, input.type);
+  const wallet = await getOrCreateWallet(input.userId, input.type, db);
   const pending = new Prisma.Decimal(wallet.pending);
   const nextPending = pending.minus(amount);
   const nextAvailable = input.restoreAvailable
     ? new Prisma.Decimal(wallet.available).plus(amount)
     : new Prisma.Decimal(wallet.available);
 
-  await prisma.walletBalance.update({
+  await db.walletBalance.update({
     where: { id: wallet.id },
     data: {
       pending: nextPending.lessThan(0) ? 0 : nextPending,
@@ -139,7 +142,7 @@ export async function releaseReservation(input: {
   });
 
   if (input.restoreAvailable) {
-    await prisma.ledgerEntry.create({
+    await db.ledgerEntry.create({
       data: {
         userId: input.userId,
         walletType: input.type,
