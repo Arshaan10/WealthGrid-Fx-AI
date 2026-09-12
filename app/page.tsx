@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Bot, CandlestickChart, Network, ShieldAlert } from "lucide-react";
 import { FadeIn } from "@/components/brand/FadeIn";
+import { HeroChart } from "@/components/brand/HeroChart";
 import { GoldLink } from "@/components/brand/GoldButton";
 import { GlassCard } from "@/components/brand/GlassCard";
 import { RiskDisclaimer } from "@/components/brand/RiskDisclaimer";
@@ -14,27 +15,32 @@ export default function HomePage() {
   return (
     <MarketingShell atmosphere="hero">
       <section className="mx-auto max-w-6xl px-4 pb-20 pt-16 sm:px-6 sm:pt-24">
-        <FadeIn className="max-w-3xl">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.36em] text-gold">
-            Trading desk · AI grid · Phase 1
-          </p>
-          <h1 className="mt-4 font-display text-5xl leading-[0.95] text-cream sm:text-7xl">
-            Whealth Grid <span className="gold-text">Fx AI</span>
-          </h1>
-          <p className="mt-6 max-w-xl text-base leading-relaxed text-muted sm:text-lg">
-            A luxury control plane for structured Forex AI packages, multi-level
-            team trading, and rank recognition. Gold-desk atmosphere. No
-            guaranteed returns. DEX rails arrive next.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <GoldLink href="/register">
-              Enter the desk <ArrowRight size={16} />
-            </GoldLink>
-            <GoldLink href="/packages" variant="ghost">
-              View Pro package
-            </GoldLink>
-          </div>
-        </FadeIn>
+        <div className="grid items-center gap-10 lg:grid-cols-[1.15fr_0.85fr]">
+          <FadeIn>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.36em] text-gold">
+              Trading desk · AI grid · Phase 1
+            </p>
+            <h1 className="mt-4 font-display text-5xl leading-[0.95] text-cream sm:text-7xl">
+              Whealth Grid <span className="gold-text">Fx AI</span>
+            </h1>
+            <p className="mt-6 max-w-xl text-base leading-relaxed text-muted sm:text-lg">
+              A luxury control plane for structured Forex AI packages, multi-level
+              team trading, and rank recognition. Gold-desk atmosphere. No
+              guaranteed returns. DEX rails arrive next.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <GoldLink href="/register">
+                Enter the desk <ArrowRight size={16} />
+              </GoldLink>
+              <GoldLink href="/packages" variant="ghost">
+                View Pro package
+              </GoldLink>
+            </div>
+          </FadeIn>
+          <FadeIn delay={0.12}>
+            <HeroChart />
+          </FadeIn>
+        </div>
 
         <div className="mt-16 grid gap-4 md:grid-cols-3">
           {[

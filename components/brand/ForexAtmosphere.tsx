@@ -1,5 +1,6 @@
 export function ForexAtmosphere({ variant = "page" }: { variant?: "page" | "hero" | "desk" }) {
-  const intensity = variant === "hero" ? 0.55 : variant === "desk" ? 0.28 : 0.4;
+  const intensity = variant === "hero" ? 1 : variant === "desk" ? 0.72 : 0.88;
+  const gid = `gold-stroke-${variant}`;
 
   return (
     <div
@@ -8,87 +9,95 @@ export function ForexAtmosphere({ variant = "page" }: { variant?: "page" | "hero
       style={{ opacity: intensity }}
     >
       <div className="absolute inset-0 desk-grid" />
-      <div className="absolute -left-24 top-[-10%] h-[420px] w-[420px] rounded-full bg-[radial-gradient(circle,rgba(212,175,55,0.16),transparent_68%)] blur-2xl" />
-      <div className="absolute right-[-8%] top-[20%] h-[380px] w-[380px] rounded-full bg-[radial-gradient(circle,rgba(212,175,55,0.1),transparent_70%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(212,175,55,0.08),transparent_55%)]" />
+      <div className="absolute -left-16 top-[-8%] h-[520px] w-[520px] rounded-full bg-[radial-gradient(circle,rgba(212,175,55,0.22),transparent_68%)] blur-2xl" />
+      <div className="absolute right-[-6%] top-[12%] h-[460px] w-[460px] rounded-full bg-[radial-gradient(circle,rgba(212,175,55,0.16),transparent_70%)]" />
       <svg className="absolute inset-0 h-full w-full" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
         <defs>
-          <linearGradient id="goldStroke" x1="0" y1="0" x2="1" y2="0">
+          <linearGradient id={gid} x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor="#d4af37" stopOpacity="0" />
-            <stop offset="40%" stopColor="#f3d77a" stopOpacity="0.7" />
-            <stop offset="100%" stopColor="#d4af37" stopOpacity="0" />
+            <stop offset="35%" stopColor="#f3d77a" stopOpacity="0.95" />
+            <stop offset="100%" stopColor="#d4af37" stopOpacity="0.1" />
           </linearGradient>
         </defs>
         <path
-          d="M0 540 C 160 500, 220 610, 360 560 S 560 430, 720 480 980 640, 1140 520 1320 400, 1440 430"
+          d="M0 560 C 140 510, 220 620, 360 540 S 560 410, 720 470 980 650, 1140 500 1320 390, 1440 420"
           fill="none"
-          stroke="url(#goldStroke)"
-          strokeWidth="1.4"
+          stroke={`url(#${gid})`}
+          strokeWidth="1.8"
         />
         <path
-          d="M0 610 C 180 590, 260 680, 400 640 S 620 520, 780 570 1020 710, 1200 600 1360 520, 1440 540"
+          d="M0 620 C 180 600, 260 690, 400 640 S 620 510, 780 560 1020 720, 1200 590 1360 500, 1440 530"
           fill="none"
           stroke="#d4af37"
-          strokeOpacity="0.18"
-          strokeWidth="1"
+          strokeOpacity="0.35"
+          strokeWidth="1.1"
         />
         {candles.map((c) => (
-          <g key={c.x} opacity="0.22">
-            <line x1={c.x} y1={c.high} x2={c.x} y2={c.low} stroke="#d4af37" strokeWidth="1" />
+          <g key={c.x} opacity="0.55">
+            <line x1={c.x} y1={c.high} x2={c.x} y2={c.low} stroke="#f3d77a" strokeWidth="1.2" />
             <rect
-              x={c.x - 5}
+              x={c.x - 6}
               y={Math.min(c.open, c.close)}
-              width="10"
-              height={Math.max(4, Math.abs(c.close - c.open))}
-              fill={c.close < c.open ? "#d4af37" : "transparent"}
+              width="12"
+              height={Math.max(6, Math.abs(c.close - c.open))}
+              fill={c.close >= c.open ? "rgba(212,175,55,0.55)" : "rgba(10,10,12,0.85)"}
               stroke="#d4af37"
             />
           </g>
         ))}
         {nodes.map((n) => (
           <g key={`${n.x}-${n.y}`}>
-            <circle cx={n.x} cy={n.y} r="2.4" fill="#f3d77a" opacity="0.55" />
-            <circle cx={n.x} cy={n.y} r="10" fill="none" stroke="#d4af37" strokeOpacity="0.18" />
+            <circle cx={n.x} cy={n.y} r="3" fill="#f3d77a" opacity="0.85" />
+            <circle cx={n.x} cy={n.y} r="12" fill="none" stroke="#d4af37" strokeOpacity="0.35" />
           </g>
         ))}
-        <line x1="180" y1="210" x2="310" y2="168" stroke="#d4af37" strokeOpacity="0.16" />
-        <line x1="310" y1="168" x2="430" y2="240" stroke="#d4af37" strokeOpacity="0.16" />
-        <line x1="1040" y1="140" x2="1180" y2="190" stroke="#d4af37" strokeOpacity="0.16" />
-        <line x1="1180" y1="190" x2="1280" y2="120" stroke="#d4af37" strokeOpacity="0.16" />
-        <g opacity="0.35">
-          <path d="M980 250 l8 14 h-16 z" fill="#d4af37" />
-          <text x="996" y="262" fill="#f3d77a" fontSize="10" fontFamily="sans-serif">
+        <line x1="180" y1="160" x2="310" y2="120" stroke="#d4af37" strokeOpacity="0.4" />
+        <line x1="310" y1="120" x2="430" y2="190" stroke="#d4af37" strokeOpacity="0.4" />
+        <line x1="430" y1="190" x2="560" y2="140" stroke="#d4af37" strokeOpacity="0.28" />
+        <line x1="1040" y1="110" x2="1180" y2="160" stroke="#d4af37" strokeOpacity="0.4" />
+        <line x1="1180" y1="160" x2="1280" y2="90" stroke="#d4af37" strokeOpacity="0.4" />
+        <line x1="860" y1="150" x2="1040" y2="110" stroke="#d4af37" strokeOpacity="0.28" />
+        <g opacity="0.7">
+          <path d="M980 210 l9 16 h-18 z" fill="#d4af37" />
+          <text x="1000" y="224" fill="#f3d77a" fontSize="11" fontFamily="sans-serif">
             BUY
           </text>
-          <path d="M620 330 l8 -14 h-16 z" fill="#8a7020" />
-          <text x="636" y="328" fill="#d4af37" fontSize="10" fontFamily="sans-serif">
+          <path d="M640 300 l9 -16 h-18 z" fill="#8a7020" />
+          <text x="656" y="298" fill="#d4af37" fontSize="11" fontFamily="sans-serif">
             SIG
           </text>
         </g>
       </svg>
-      <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[var(--bg-void)] to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[var(--bg-void)] to-transparent" />
     </div>
   );
 }
 
 const candles = [
-  { x: 90, high: 420, low: 510, open: 440, close: 490 },
-  { x: 130, high: 400, low: 500, open: 480, close: 420 },
-  { x: 170, high: 390, low: 470, open: 430, close: 405 },
-  { x: 210, high: 380, low: 460, open: 410, close: 445 },
-  { x: 250, high: 360, low: 450, open: 440, close: 375 },
-  { x: 290, high: 350, low: 430, open: 380, close: 360 },
-  { x: 1180, high: 280, low: 360, open: 340, close: 300 },
-  { x: 1220, high: 270, low: 350, open: 305, close: 330 },
-  { x: 1260, high: 260, low: 340, open: 325, close: 275 },
-  { x: 1300, high: 250, low: 330, open: 280, close: 260 },
+  { x: 70, high: 500, low: 620, open: 540, close: 590 },
+  { x: 115, high: 470, low: 600, open: 580, close: 500 },
+  { x: 160, high: 450, low: 580, open: 510, close: 470 },
+  { x: 205, high: 430, low: 560, open: 480, close: 530 },
+  { x: 250, high: 410, low: 540, open: 520, close: 430 },
+  { x: 295, high: 390, low: 520, open: 440, close: 410 },
+  { x: 340, high: 380, low: 510, open: 420, close: 470 },
+  { x: 1080, high: 240, low: 360, open: 330, close: 270 },
+  { x: 1125, high: 230, low: 350, open: 280, close: 310 },
+  { x: 1170, high: 220, low: 340, open: 305, close: 245 },
+  { x: 1215, high: 210, low: 330, open: 250, close: 230 },
+  { x: 1260, high: 200, low: 320, open: 240, close: 280 },
+  { x: 1305, high: 190, low: 310, open: 270, close: 215 },
+  { x: 1350, high: 180, low: 300, open: 220, close: 200 },
 ];
 
 const nodes = [
-  { x: 180, y: 210 },
-  { x: 310, y: 168 },
-  { x: 430, y: 240 },
-  { x: 1040, y: 140 },
-  { x: 1180, y: 190 },
-  { x: 1280, y: 120 },
-  { x: 860, y: 200 },
+  { x: 180, y: 160 },
+  { x: 310, y: 120 },
+  { x: 430, y: 190 },
+  { x: 560, y: 140 },
+  { x: 860, y: 150 },
+  { x: 1040, y: 110 },
+  { x: 1180, y: 160 },
+  { x: 1280, y: 90 },
 ];
