@@ -11,7 +11,9 @@ import { SectionHeading } from "@/components/brand/SectionHeading";
 export function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    params.get("blocked") === "1" ? "This account is blocked. Contact support." : null,
+  );
   const [busy, setBusy] = useState(false);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -28,7 +30,11 @@ export function LoginForm() {
     });
     setBusy(false);
     if (result?.error) {
-      setError("Email or password is incorrect.");
+      setError(
+        result.error === "BLOCKED"
+          ? "This account is blocked. Contact support."
+          : "Email or password is incorrect.",
+      );
       return;
     }
 

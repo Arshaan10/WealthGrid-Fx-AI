@@ -2,7 +2,7 @@
   "name": "whealth-grid-fx-ai",
   "version": "0.1.0",
   "private": true,
-  "description": "Whealth Grid Fx AI — premium Forex AI bot platform (Phase 1)",
+  "description": "Whealth Grid Fx AI — premium Forex AI bot platform",
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
@@ -18,6 +18,8 @@
   },
   "dependencies": {
     "@prisma/client": "^6.16.2",
+    "@tanstack/react-query": "^5.102.8",
+    "@walletconnect/ethereum-provider": "^2.24.0",
     "bcryptjs": "^3.0.2",
     "clsx": "^2.1.1",
     "framer-motion": "^12.23.12",
@@ -27,6 +29,8 @@
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "tailwind-merge": "^3.3.1",
+    "viem": "^2.56.3",
+    "wagmi": "^3.7.7",
     "zod": "^3.25.76"
   },
   "devDependencies": {

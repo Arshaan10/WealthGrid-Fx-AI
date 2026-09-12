@@ -17,7 +17,11 @@ const faqs = [
   },
   {
     q: "Can I deposit USDT on-chain today?",
-    a: "Not in Phase 1. The deposit and withdraw screens record intents and show a “connect wallet (coming next)” placeholder.",
+    a: "Yes — USDT BEP-20 on BNB Smart Chain only. Connect any Web3 / DEX wallet (MetaMask, Trust, WalletConnect, TokenPocket, and others), send USDT BEP-20 to the company address, or use the in-desk send button. After the required confirmations the desk auto-credits Trading or Network. Withdrawals auto-approve against treasury, then pay USDT BEP-20 to your connected address when the hot wallet is configured. Other networks and tokens are rejected.",
+  },
+  {
+    q: "What happens if the company treasury is empty?",
+    a: "The withdrawal is blocked and your wallet is not deducted. Admins top up the payout pool on the Treasury desk first.",
   },
   {
     q: "Where do lifetime records live?",

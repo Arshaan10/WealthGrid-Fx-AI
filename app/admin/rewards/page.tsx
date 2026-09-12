@@ -5,6 +5,7 @@ import {
   loyalty,
   packages,
   referrals,
+  withdrawal,
 } from "@/config/rewards";
 import { requireAdmin } from "@/lib/session";
 
@@ -38,6 +39,9 @@ export default async function AdminRewardsPage() {
             <li>Team levels {referrals.teamLevels}</li>
             <li>{loyalty.note}</li>
             <li>{businessTurnover.note}</li>
+            <li>
+              Withdrawal fee {withdrawal.feePct}% — {withdrawal.note}
+            </li>
           </ul>
         </GlassCard>
       </div>

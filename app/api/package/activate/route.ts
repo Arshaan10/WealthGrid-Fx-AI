@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth";
+import { AccessError, assertNotBlocked } from "@/lib/access";
 import { authOptions } from "@/lib/auth";
 import { packages, referrals } from "@/config/rewards";
 import { writeAudit } from "@/lib/audit";
@@ -11,6 +12,15 @@ export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    await assertNotBlocked(session.user.id);
+  } catch (error) {
+    if (error instanceof AccessError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    throw error;
   }
 
   const body = await request.json().catch(() => null);

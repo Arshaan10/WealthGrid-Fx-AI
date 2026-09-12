@@ -1,4 +1,4 @@
-// Whealth Grid Fx AI — Phase 1 schema (SQLite for local/dev).
+// Whealth Grid Fx AI — desk schema (SQLite for local/dev).
 // To use Postgres later: change provider to "postgresql", update DATABASE_URL, then `npx prisma db push`.
 
 generator client {
@@ -11,18 +11,23 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  name          String
-  passwordHash  String
-  role          String   @default("USER") // USER | ADMIN
-  walletAddress String?
-  referralCode  String   @unique
-  referredById  String?
-  referredBy    User?    @relation("UserReferrals", fields: [referredById], references: [id])
-  downline      User[]   @relation("UserReferrals")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  name               String
+  phone              String?   @unique
+  passwordHash       String
+  role               String    @default("USER") // USER | ADMIN
+  blocked            Boolean   @default(false)
+  emailVerified      DateTime?
+  emailVerifyToken   String?
+  emailVerifyExpires DateTime?
+  walletAddress      String?
+  referralCode       String    @unique
+  referredById       String?
+  referredBy         User?     @relation("UserReferrals", fields: [referredById], references: [id])
+  downline           User[]    @relation("UserReferrals")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   wallets       WalletBalance[]
   ledger        LedgerEntry[]
@@ -31,10 +36,13 @@ model User {
   referralsGot  Referral[]          @relation("Referee")
   rewardPayouts RewardPayout[]
   rankProgress  RankProgress?
-  deposits      DepositIntent[]
-  withdrawals   WithdrawalRequest[]
-  announcements Announcement[]
-  auditLogs     AuditLog[]
+  deposits          DepositIntent[]
+  withdrawals       WithdrawalRequest[]
+  announcements     Announcement[]
+  auditLogs         AuditLog[]
+  treasuryMoves     TreasuryMovement[]
+  tickets           SupportTicket[]
+  ticketMessages    SupportMessage[]
 }
 
 model WalletBalance {
@@ -55,7 +63,7 @@ model LedgerEntry {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   walletType   String
   direction    String // CREDIT | DEBIT
-  category     String // DEPOSIT | WITHDRAWAL | PACKAGE | REWARD | ADJUSTMENT | REFERRAL
+  category     String // DEPOSIT | WITHDRAWAL | PACKAGE | REWARD | ADJUSTMENT | REFERRAL | FEE
   amount       Decimal
   balanceAfter Decimal
   description  String
@@ -122,31 +130,67 @@ model RankProgress {
 }
 
 model DepositIntent {
-  id         String    @id @default(cuid())
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  amount     Decimal
-  walletType String    @default("TRADING")
-  status     String    @default("PENDING") // PENDING | APPROVED | REJECTED
-  txHint     String?
-  note       String?
-  createdAt  DateTime  @default(now())
-  reviewedAt DateTime?
-  reviewedBy String?
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount      Decimal
+  walletType  String    @default("TRADING")
+  status      String    @default("PENDING") // PENDING | CONFIRMING | APPROVED | REJECTED
+  txHint      String?
+  fromAddress String?
+  confirmations Int     @default(0)
+  requiredConfs Int     @default(3)
+  note        String?
+  createdAt   DateTime  @default(now())
+  reviewedAt  DateTime?
+  reviewedBy  String?
+
+  @@index([txHint])
 }
 
 model WithdrawalRequest {
   id         String    @id @default(cuid())
   userId     String
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  amount     Decimal
+  amount     Decimal // gross deducted from the member wallet
+  feeAmount  Decimal   @default(0)
+  netAmount  Decimal   @default(0) // treasury payout after fee
   walletType String
   toAddress  String?
-  status     String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  status     String    @default("APPROVED") // PENDING (legacy) | APPROVED | SENDING | CONFIRMING | SENT | CONFIRMED | FAILED_SEND | REJECTED
+  txHash     String?
+  sendError  String?
+  confirmations Int    @default(0)
+  requiredConfs Int    @default(3)
+  sentAt     DateTime?
   note       String?
   createdAt  DateTime  @default(now())
   reviewedAt DateTime?
   reviewedBy String?
+
+  @@index([txHash])
+}
+
+model Treasury {
+  id        String             @id @default("company")
+  balance   Decimal            @default(0)
+  updatedAt DateTime           @updatedAt
+  movements TreasuryMovement[]
+}
+
+model TreasuryMovement {
+  id           String   @id @default(cuid())
+  treasuryId   String   @default("company")
+  treasury     Treasury @relation(fields: [treasuryId], references: [id], onDelete: Cascade)
+  direction    String // CREDIT | DEBIT
+  category     String // TOPUP | PAYOUT | ADJUSTMENT
+  amount       Decimal
+  balanceAfter Decimal
+  description  String
+  refId        String?
+  actorId      String?
+  actor        User?    @relation(fields: [actorId], references: [id])
+  createdAt    DateTime @default(now())
 }
 
 model Announcement {
@@ -158,6 +202,27 @@ model Announcement {
   author    User     @relation(fields: [authorId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model SupportTicket {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject   String
+  status    String           @default("OPEN") // OPEN | PENDING | CLOSED
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  messages  SupportMessage[]
+}
+
+model SupportMessage {
+  id        String        @id @default(cuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime      @default(now())
 }
 
 model AuditLog {
