@@ -13,16 +13,42 @@ export const contactSchema = z.object({
   message: z.string().min(10).max(2000),
 });
 
+export const evmAddressSchema = z
+  .string()
+  .trim()
+  .regex(/^0x[a-fA-F0-9]{40}$/, "Enter a valid EVM address.");
+
+export const txHashSchema = z
+  .string()
+  .trim()
+  .regex(/^0x[a-fA-F0-9]{64}$/, "Enter a valid transaction hash.");
+
 export const amountSchema = z.object({
   amount: z.coerce.number().positive().max(1_000_000),
   walletType: z.enum(["TRADING", "NETWORK"]).default("TRADING"),
   note: z.string().max(240).optional(),
   toAddress: z.string().max(128).optional(),
+  txHash: z.string().max(80).optional().or(z.literal("")),
+  fromAddress: z.string().max(128).optional().or(z.literal("")),
+  watch: z.boolean().optional(),
+});
+
+export const walletAddressSchema = z.object({
+  address: evmAddressSchema,
 });
 
 export const profileSchema = z.object({
   name: z.string().min(2).max(80),
-  walletAddress: z.string().max(128).optional().or(z.literal("")),
+  walletAddress: z
+    .string()
+    .max(128)
+    .optional()
+    .or(z.literal(""))
+    .refine((value) => !value || /^0x[a-fA-F0-9]{40}$/.test(value), "Enter a valid EVM address."),
+});
+
+export const payoutRetrySchema = z.object({
+  id: z.string().min(1),
 });
 
 export const announcementSchema = z.object({

@@ -14,7 +14,9 @@ export default async function AdminHomePage() {
       prisma.user.count(),
       prisma.packageActivation.count({ where: { status: "ACTIVE" } }),
       prisma.depositIntent.count({ where: { status: "PENDING" } }),
-      prisma.withdrawalRequest.count({ where: { status: "APPROVED" } }),
+      prisma.withdrawalRequest.count({
+        where: { status: { in: ["APPROVED", "SENDING", "SENT", "FAILED_SEND"] } },
+      }),
       prisma.announcement.count({ where: { published: true } }),
       getOrCreateTreasury(),
     ]);
@@ -28,7 +30,7 @@ export default async function AdminHomePage() {
         <StatCard
           label="Treasury"
           value={formatUsd(treasury.balance)}
-          hint={`${approvedWithdrawals} auto-approved withdrawals`}
+          hint={`${approvedWithdrawals} treasury withdrawals`}
           icon={<Landmark size={18} />}
         />
       </div>
@@ -39,8 +41,10 @@ export default async function AdminHomePage() {
           <Link href="/admin/treasury" className="text-gold hover:text-gold-bright">
             Treasury
           </Link>
-          . Member withdrawals auto-approve and debit that pool immediately.
-          Deposit intents still need review on the{" "}
+          . Member withdrawals auto-approve and debit that pool immediately,
+          then attempt a company-wallet USDT send when chain env is set.
+          Deposit intents with a verifiable tx hash can auto-credit; the rest
+          still need review on the{" "}
           <Link href="/admin/queue" className="text-gold hover:text-gold-bright">
             deposit queue
           </Link>

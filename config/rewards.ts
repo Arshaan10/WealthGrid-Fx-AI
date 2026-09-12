@@ -38,7 +38,7 @@ export const referrals = {
 /** Centralized withdrawal fee. Applied to the requested (gross) amount. */
 export const withdrawal = {
   feePct: 5,
-  note: "A 5% fee is taken from the requested amount. The company treasury pays the net to the member. Wallet-connect / on-chain send is later.",
+  note: "A 5% fee is taken from the requested amount. The company treasury books the net; the company hot wallet sends USDT when chain env is configured.",
 } as const;
 
 export const loyalty = {
@@ -114,7 +114,7 @@ export const giftCatalog = [
 export const riskDisclaimer = {
   short:
     "Forex and leveraged products involve substantial risk of loss. Figures on this site are structural illustrations, not guarantees of profit.",
-  long: `Whealth Grid Fx AI presents package rates, network percentages, ranks, and gift catalogs as a configured reward structure for product education. Nothing here is a promise of profit, a risk-free return, or investment advice. Foreign-exchange and CFD-style exposure can result in the loss of some or all capital. Past or modelled performance is not indicative of future results. Member withdrawals auto-approve against the company treasury (payout pool) and deduct available wallet balance immediately; on-chain wallet-connect settlement ships later. Deposits remain admin-reviewed intents in this phase. Participate only with capital you can afford to lose and seek independent advice where required.`,
+  long: `Whealth Grid Fx AI presents package rates, network percentages, ranks, and gift catalogs as a configured reward structure for product education. Nothing here is a promise of profit, a risk-free return, or investment advice. Foreign-exchange and CFD-style exposure can result in the loss of some or all capital. Past or modelled performance is not indicative of future results. Member withdrawals auto-approve against the company treasury (payout pool) and deduct available wallet balance immediately. When a company hot wallet is configured, the net USDT is then sent on-chain to the member address; otherwise the booking stays on the ledger. Deposits show the company address — submit a tx hash for verification or admin confirm. Participate only with capital you can afford to lose and seek independent advice where required.`,
 } as const;
 
 export function packageBySlug(slug: string) {

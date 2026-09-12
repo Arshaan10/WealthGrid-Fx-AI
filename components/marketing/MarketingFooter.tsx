@@ -11,8 +11,8 @@ export function MarketingFooter() {
           <Logo />
           <p className="mt-4 max-w-md text-sm text-muted">
             A gold-desk control plane for AI grid trading structure, ranks, and
-            network rewards. Withdrawals settle from company treasury; on-chain
-            wallet-connect send is later.
+            network rewards. Withdrawals settle from company treasury, then the
+            hot wallet sends USDT when configured.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-3 text-sm">

@@ -123,17 +123,20 @@ model RankProgress {
 }
 
 model DepositIntent {
-  id         String    @id @default(cuid())
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  amount     Decimal
-  walletType String    @default("TRADING")
-  status     String    @default("PENDING") // PENDING | APPROVED | REJECTED
-  txHint     String?
-  note       String?
-  createdAt  DateTime  @default(now())
-  reviewedAt DateTime?
-  reviewedBy String?
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount      Decimal
+  walletType  String    @default("TRADING")
+  status      String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  txHint      String?
+  fromAddress String?
+  note        String?
+  createdAt   DateTime  @default(now())
+  reviewedAt  DateTime?
+  reviewedBy  String?
+
+  @@index([txHint])
 }
 
 model WithdrawalRequest {
@@ -145,11 +148,16 @@ model WithdrawalRequest {
   netAmount  Decimal   @default(0) // treasury payout after fee
   walletType String
   toAddress  String?
-  status     String    @default("APPROVED") // PENDING (legacy) | APPROVED | REJECTED
+  status     String    @default("APPROVED") // PENDING (legacy) | APPROVED | SENDING | SENT | FAILED_SEND | REJECTED
+  txHash     String?
+  sendError  String?
+  sentAt     DateTime?
   note       String?
   createdAt  DateTime  @default(now())
   reviewedAt DateTime?
   reviewedBy String?
+
+  @@index([txHash])
 }
 
 model Treasury {

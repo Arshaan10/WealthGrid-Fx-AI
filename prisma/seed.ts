@@ -41,7 +41,7 @@ async function main() {
       passwordHash: adminHash,
       role: "ADMIN",
       referralCode: "WG-ADMIN1",
-      walletAddress: "0xADMIN0000000000000000000000000000000001",
+      walletAddress: "0x0000000000000000000000000000000000000001",
     },
   });
 
@@ -54,7 +54,7 @@ async function main() {
       passwordHash: demoHash,
       role: "USER",
       referralCode: "WG-DEMO01",
-      walletAddress: "0xDEMO00000000000000000000000000000000001",
+      walletAddress: "0x1111111111111111111111111111111111111111",
     },
   });
 
@@ -233,7 +233,8 @@ async function main() {
         amount: "250",
         walletType: "TRADING",
         status: "PENDING",
-        note: "Awaiting DEX connect (Phase 1 placeholder)",
+        note: "Awaiting USDT send to company wallet",
+        fromAddress: "0x1111111111111111111111111111111111111111",
       },
     });
   }
@@ -255,7 +256,7 @@ async function main() {
         feeAmount: String(seedFee),
         netAmount: String(seedNet),
         walletType: "TRADING",
-        toAddress: "0xDEMO00000000000000000000000000000000001",
+        toAddress: "0x1111111111111111111111111111111111111111",
         status: "APPROVED",
         reviewedAt: new Date(),
         note: "Seeded auto-approved payout from company treasury",
@@ -334,7 +335,7 @@ async function main() {
     await prisma.announcement.create({
       data: {
         title: "Treasury payouts are live",
-        body: "Welcome to Whealth Grid Fx AI. Withdrawals deduct your available balance immediately and auto-approve against the company treasury. Wallet-connect on-chain send arrives later. Deposit intents still go to the admin queue.",
+        body: "Welcome to Whealth Grid Fx AI. Connect a wallet on deposit, withdraw, or profile. Withdrawals deduct your available balance immediately and auto-approve against the company treasury, then send USDT from the company hot wallet when chain env is configured.",
         published: true,
         authorId: admin.id,
       },

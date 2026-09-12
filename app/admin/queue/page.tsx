@@ -1,14 +1,15 @@
 import { GlassCard } from "@/components/brand/GlassCard";
 import { RiskDisclaimer } from "@/components/brand/RiskDisclaimer";
 import { QueueTable } from "@/components/admin/QueueTable";
-import { DataTable } from "@/components/desk/DataTable";
-import { StatusPill } from "@/components/desk/StatusPill";
+import { WithdrawalHistoryTable } from "@/components/admin/WithdrawalHistoryTable";
+import { getExplorerTxUrl, getPublicChainConfig } from "@/lib/chain";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/session";
 import { formatDate, formatUsd } from "@/lib/utils";
 
 export default async function AdminQueuePage() {
   await requireAdmin();
+  const chain = getPublicChainConfig();
   const [deposits, withdrawals] = await Promise.all([
     prisma.depositIntent.findMany({
       include: { user: true },
@@ -27,9 +28,9 @@ export default async function AdminQueuePage() {
       <GlassCard>
         <h2 className="font-display text-3xl">Deposit queue</h2>
         <p className="mt-2 text-sm text-muted">
-          Deposits stay as Phase 1 stubs — approve credits the member wallet.
-          New withdrawals auto-approve against treasury and no longer need this
-          desk. Legacy reserved withdrawals, if any, can still be settled here.
+          Members can connect a wallet, copy the company address, and submit a tx hash. Verified
+          matching USDT transfers auto-credit; the rest wait here. New withdrawals auto-approve
+          against treasury, then attempt an on-chain send when configured.
         </p>
       </GlassCard>
       <QueueTable
@@ -39,7 +40,7 @@ export default async function AdminQueuePage() {
           id: row.id,
           user: `${row.user.name} · ${row.user.email}`,
           amount: formatUsd(row.amount),
-          extra: row.walletType,
+          extra: [row.walletType, row.fromAddress, row.txHint].filter(Boolean).join(" · ") || row.walletType,
           status: row.status,
           when: formatDate(row.createdAt),
           pending: row.status === "PENDING",
@@ -63,26 +64,28 @@ export default async function AdminQueuePage() {
       <GlassCard pad={false} className="p-4 sm:p-6">
         <h3 className="mb-4 font-display text-2xl">Withdrawal history</h3>
         <p className="mb-4 text-sm text-muted">
-          Auto-approved payouts from the company treasury. Manual approve/reject
-          is not required.
+          Auto-approved treasury bookings. Status moves APPROVED → SENT when the company hot
+          wallet pays the net USDT, or FAILED_SEND if the chain transfer fails (retry below).
+          {!chain.payoutConfigured ? " On-chain send is not configured." : ""}
         </p>
-        <DataTable headers={["When", "User", "Wallet", "Gross", "Fee", "Net", "Status"]}>
-          {withdrawals.map((row) => (
-            <tr key={row.id}>
-              <td className="px-3 py-3 text-muted">{formatDate(row.createdAt)}</td>
-              <td className="px-3 py-3">
-                {row.user.name} · {row.user.email}
-              </td>
-              <td className="px-3 py-3">{row.walletType}</td>
-              <td className="px-3 py-3">{formatUsd(row.amount)}</td>
-              <td className="px-3 py-3">{formatUsd(row.feeAmount)}</td>
-              <td className="px-3 py-3">{formatUsd(row.netAmount)}</td>
-              <td className="px-3 py-3">
-                <StatusPill status={row.status} />
-              </td>
-            </tr>
-          ))}
-        </DataTable>
+        <WithdrawalHistoryTable
+          payoutConfigured={chain.payoutConfigured}
+          rows={withdrawals.map((row) => ({
+            id: row.id,
+            when: formatDate(row.createdAt),
+            user: `${row.user.name} · ${row.user.email}`,
+            walletType: row.walletType,
+            gross: formatUsd(row.amount),
+            fee: formatUsd(row.feeAmount),
+            net: formatUsd(row.netAmount),
+            toAddress: row.toAddress,
+            status: row.status,
+            txHash: row.txHash,
+            sendError: row.sendError,
+            explorerTx: row.txHash ? getExplorerTxUrl(row.txHash) : null,
+            retryable: row.status === "FAILED_SEND" || row.status === "SENDING" || (row.status === "APPROVED" && !row.txHash && chain.payoutConfigured),
+          }))}
+        />
       </GlassCard>
       <RiskDisclaimer compact />
     </div>
