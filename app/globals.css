@@ -106,3 +106,30 @@ textarea::placeholder {
 .ticker-track:hover {
   animation-play-state: paused;
 }
+
+@media print {
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  .no-print,
+  aside,
+  header,
+  .ticker-track {
+    display: none !important;
+  }
+
+  .glass-card,
+  .print-sheet .glass-card {
+    background: #fff !important;
+    border: 1px solid #d6d3c9 !important;
+    box-shadow: none !important;
+    color: #111 !important;
+    backdrop-filter: none !important;
+  }
+
+  .print-sheet {
+    color: #111;
+  }
+}

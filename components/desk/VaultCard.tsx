@@ -48,14 +48,14 @@ export function VaultStrip({
         title="Trading vault"
         available={trading.available}
         pending={trading.pending}
-        footer="USDT booked to your Trading wallet after on-chain confirmations."
+        footer="Daily trading ROI (Mon–Fri, Asia/Dubai) and confirmed deposits. Withdraw from this vault separately."
       />
       <VaultCard
         title="Network vault"
         available={network.available}
         pending={network.pending}
         accent="cream"
-        footer="Referral and network credits. Withdrawals debit the selected vault immediately."
+        footer="Direct, team, rank, and loyalty credits — 24/7. Withdrawals debit the selected vault immediately."
       />
     </div>
   );

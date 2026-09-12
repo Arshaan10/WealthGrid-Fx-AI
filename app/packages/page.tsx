@@ -34,12 +34,12 @@ export default function PackagesPage() {
               <dd className="mt-2 font-display text-3xl text-cream">~{pro.dailyRatePct}%</dd>
             </div>
             <div className="rounded-xl border border-gold-line/50 bg-black/30 p-4">
-              <dt className="text-[11px] uppercase tracking-[0.18em] text-muted">Package cap</dt>
-              <dd className="mt-2 font-display text-3xl text-cream">~{pro.maxReturnPct}%</dd>
+              <dt className="text-[11px] uppercase tracking-[0.18em] text-muted">Trading cap 2×</dt>
+              <dd className="mt-2 font-display text-3xl text-cream">{pro.maxReturnPct}%</dd>
             </div>
             <div className="rounded-xl border border-gold-line/50 bg-black/30 p-4">
-              <dt className="text-[11px] uppercase tracking-[0.18em] text-muted">Network toward</dt>
-              <dd className="mt-2 font-display text-3xl text-cream">~{pro.networkCapPct}%</dd>
+              <dt className="text-[11px] uppercase tracking-[0.18em] text-muted">Network cap 3×</dt>
+              <dd className="mt-2 font-display text-3xl text-cream">{pro.networkCapPct}%</dd>
             </div>
           </dl>
         </GlassCard>

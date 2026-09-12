@@ -116,7 +116,11 @@ model RewardPayout {
   amount    Decimal
   status    String   @default("PENDING") // PENDING | PAID | CANCELLED
   note      String?
+  /** Idempotency key, e.g. DAILY:2026-09-12 or TEAM:2026-09-12:<sourceUserId> */
+  periodKey String?
   createdAt DateTime @default(now())
+
+  @@index([userId, type, periodKey])
 }
 
 model RankProgress {

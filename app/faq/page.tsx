@@ -12,6 +12,14 @@ const faqs = [
     a: "No. It is an illustrative structure stored in config. Markets can produce losses. Never treat Whealth Grid Fx AI as risk-free.",
   },
   {
+    q: "When do trading rewards credit, and which wallet?",
+    a: "Daily trading ROI credits the Trading wallet only, Monday–Friday, evaluated in Asia/Dubai (UTC+4). Saturday and Sunday are skipped. A member can earn up to 2× of activated package principal via daily ROI.",
+  },
+  {
+    q: "Where do network rewards go, and what is the cap?",
+    a: "Direct referral, team trading, ranks, loyalty, and any withdrawal-related network bonuses credit the Network wallet 24/7, up to 3× of activated package principal. Withdrawals stay split: pick Trading or Network.",
+  },
+  {
     q: "Why is the brand spelled Whealth?",
     a: "Whealth is the product name — a deliberate spelling, not a typo for Wealth.",
   },

@@ -11,7 +11,8 @@
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
-    "db:setup": "prisma db push && prisma db seed"
+    "db:setup": "prisma db push && prisma db seed",
+    "rewards:daily": "tsx scripts/rewards-daily.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
