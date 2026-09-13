@@ -4,7 +4,7 @@ import { GlassCard } from "@/components/brand/GlassCard";
 import { RiskDisclaimer } from "@/components/brand/RiskDisclaimer";
 import { SectionHeading } from "@/components/brand/SectionHeading";
 import { MarketingShell } from "@/components/marketing/MarketingShell";
-import { packages } from "@/config/rewards";
+import { boosters, flashLoan, packages } from "@/config/rewards";
 
 export const metadata: Metadata = { title: "Packages" };
 
@@ -17,7 +17,7 @@ export default function PackagesPage() {
         <SectionHeading
           kicker="Activation"
           title="The Pro desk package"
-          lede="A single Phase 1 product, driven from config. Activate from the member desk once a trading-wallet balance exists."
+          lede="A single desk product with regular, booster, and flash-loan funding paths. Activate from the member desk, or ask ops to grant packages."
         />
         <GlassCard className="mt-10">
           <div className="flex flex-wrap items-end justify-between gap-4">
@@ -42,6 +42,19 @@ export default function PackagesPage() {
               <dd className="mt-2 font-display text-3xl text-cream">{pro.networkCapPct}%</dd>
             </div>
           </dl>
+        </GlassCard>
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          {Object.values(boosters.tiers).map((tier) => (
+            <GlassCard key={tier.slug}>
+              <p className="text-xs uppercase tracking-[0.2em] text-gold">{tier.slug}</p>
+              <h3 className="mt-2 font-display text-2xl">{tier.name}</h3>
+              <p className="mt-2 text-sm text-muted">{tier.copy}</p>
+            </GlassCard>
+          ))}
+        </div>
+        <GlassCard className="mt-6">
+          <h3 className="font-display text-2xl">Flash loan activation</h3>
+          <p className="mt-3 text-sm text-muted">{flashLoan.note}</p>
         </GlassCard>
         <RiskDisclaimer className="mt-8" />
       </div>

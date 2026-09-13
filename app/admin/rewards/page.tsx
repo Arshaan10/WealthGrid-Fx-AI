@@ -3,8 +3,10 @@ import { GlassCard } from "@/components/brand/GlassCard";
 import { RiskDisclaimer } from "@/components/brand/RiskDisclaimer";
 import { RoutingBanner } from "@/components/desk/RoutingBanner";
 import {
+  boosters,
   businessTurnover,
   caps,
+  flashLoan,
   loyalty,
   packages,
   referrals,
@@ -56,6 +58,21 @@ export default async function AdminRewardsPage() {
           </ul>
         </GlassCard>
       </div>
+      <GlassCard>
+        <h3 className="font-display text-2xl">ROI boosters</h3>
+        <p className="mt-2 text-sm text-muted">{boosters.activeVolumeDefinition}</p>
+        <ul className="mt-3 space-y-2 text-sm text-muted">
+          {Object.values(boosters.tiers).map((tier) => (
+            <li key={tier.slug}>
+              <span className="text-gold">{tier.name}</span> — {tier.copy}
+            </li>
+          ))}
+        </ul>
+      </GlassCard>
+      <GlassCard>
+        <h3 className="font-display text-2xl">Flash loans</h3>
+        <p className="mt-2 text-sm text-muted">{flashLoan.note}</p>
+      </GlassCard>
       <GlassCard>
         <h3 className="font-display text-2xl">Team trading schedule</h3>
         <ol className="mt-4 grid grid-cols-2 gap-2 text-xs text-muted sm:grid-cols-5">

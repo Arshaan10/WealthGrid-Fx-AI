@@ -4,6 +4,7 @@ import { GlassCard } from "@/components/brand/GlassCard";
 import { RiskDisclaimer } from "@/components/brand/RiskDisclaimer";
 import { ChartLegend, DonutChart, DualAreaChart, GoldBarChart } from "@/components/charts/DeskCharts";
 import { DualCapProgress } from "@/components/desk/CapBar";
+import { LoanBanner } from "@/components/desk/LoanBanner";
 import { MetricGrid } from "@/components/desk/MetricGrid";
 import { OnchainSync } from "@/components/desk/OnchainSync";
 import { RecentActivity } from "@/components/desk/RecentActivity";
@@ -14,6 +15,7 @@ import { rollupWeekly, userEarningsSeries, weeklyTradingBarsFromSeries } from "@
 import { getPublicChainConfig } from "@/lib/chain";
 import { syncOnchainDesk } from "@/lib/desk-sync";
 import { prisma } from "@/lib/prisma";
+import { getLoanDeskSnapshot } from "@/lib/flash-loans";
 import { getCapSnapshot } from "@/lib/rewards";
 import { requireUser } from "@/lib/session";
 import { asNumber, formatUsd } from "@/lib/utils";
@@ -23,7 +25,7 @@ export default async function DashboardHomePage() {
   const chain = getPublicChainConfig();
   await syncOnchainDesk(session.user.id);
 
-  const [user, caps, earnings] = await Promise.all([
+  const [user, caps, earnings, loanSnap] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -36,6 +38,7 @@ export default async function DashboardHomePage() {
     }),
     getCapSnapshot(session.user.id),
     userEarningsSeries(session.user.id, 42),
+    getLoanDeskSnapshot(session.user.id),
   ]);
   const weekly = weeklyTradingBarsFromSeries(earnings, 6);
 
@@ -50,6 +53,7 @@ export default async function DashboardHomePage() {
     <div className="min-w-0 space-y-6">
       <OnchainSync />
       <RoutingBanner />
+      <LoanBanner snap={loanSnap} />
       <VaultStrip
         trading={{
           available: tradingAvail,
@@ -116,8 +120,8 @@ export default async function DashboardHomePage() {
           <DonutChart
             center="USDT"
             slices={[
-              { label: "Trading", value: tradingAvail, color: "#d4af37" },
-              { label: "Network", value: networkAvail, color: "#f4efe3" },
+              { label: "Trading", value: Math.max(0, tradingAvail), color: "#d4af37" },
+              { label: "Network", value: Math.max(0, networkAvail), color: "#f4efe3" },
             ]}
           />
         </GlassCard>

@@ -1,3 +1,4 @@
+import { AdminActivateForm } from "@/components/admin/AdminActivateForm";
 import { GlassCard } from "@/components/brand/GlassCard";
 import { DataTable } from "@/components/desk/DataTable";
 import { StatusPill } from "@/components/desk/StatusPill";
@@ -29,9 +30,10 @@ export default async function AdminPackagesPage() {
           </GlassCard>
         ))}
       </div>
+      <AdminActivateForm />
       <GlassCard pad={false} className="p-4 sm:p-6">
         <h2 className="mb-4 font-display text-2xl">Activations</h2>
-        <DataTable headers={["User", "Package", "Amount", "Status", "Started"]}>
+        <DataTable headers={["User", "Package", "Amount", "Funding", "Booster", "Status", "Started"]}>
           {activations.map((row) => (
             <tr key={row.id}>
               <td className="px-3 py-3">
@@ -40,6 +42,12 @@ export default async function AdminPackagesPage() {
               </td>
               <td className="px-3 py-3">{row.package.name}</td>
               <td className="px-3 py-3">{formatUsd(row.amount)}</td>
+              <td className="px-3 py-3">
+                <StatusPill status={row.fundingSource} />
+              </td>
+              <td className="px-3 py-3">
+                <StatusPill status={row.boosterTier} />
+              </td>
               <td className="px-3 py-3">
                 <StatusPill status={row.status} />
               </td>

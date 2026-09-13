@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AdminActivateForm } from "@/components/admin/AdminActivateForm";
 import { AdminUserControls } from "@/components/admin/AdminUserControls";
 import { GlassCard } from "@/components/brand/GlassCard";
 import { GoldLink } from "@/components/brand/GoldButton";
@@ -67,6 +68,7 @@ export default async function AdminUserDetailPage({
         walletAddress={user.walletAddress ?? ""}
         self={user.id === session.user.id}
       />
+      <AdminActivateForm defaultEmail={user.email} defaultUserId={user.id} />
       <GlassCard pad={false} className="p-4 sm:p-6">
         <h3 className="mb-3 font-display text-xl">Recent tickets</h3>
         <DataTable headers={["Subject", "Status", "Updated"]} empty="No tickets.">

@@ -15,13 +15,20 @@ export function VaultCard({
   accent?: "gold" | "cream";
   footer?: ReactNode;
 }) {
+  const liability = available < 0;
   return (
-    <GlassCard className="p-5">
+    <GlassCard className={`p-5 ${liability ? "border-danger/30" : ""}`}>
       <p className="text-[11px] uppercase tracking-[0.22em] text-gold/80">{title}</p>
       <div className="mt-4 grid grid-cols-2 gap-4">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.16em] text-muted">Available</p>
-          <p className={`mt-1 font-display text-3xl ${accent === "gold" ? "gold-text" : "text-cream"}`}>
+          <p className="text-[10px] uppercase tracking-[0.16em] text-muted">
+            {liability ? "Available (loan liability)" : "Available"}
+          </p>
+          <p
+            className={`mt-1 font-display text-3xl ${
+              liability ? "text-danger" : accent === "gold" ? "gold-text" : "text-cream"
+            }`}
+          >
             {formatUsd(available)}
           </p>
         </div>
@@ -55,7 +62,11 @@ export function VaultStrip({
         available={network.available}
         pending={network.pending}
         accent="cream"
-        footer="Direct, team, rank, and loyalty credits — 24/7. Withdrawals debit the selected vault immediately."
+        footer={
+          network.available < 0
+            ? "Negative available is the flash-loan liability. Network rewards auto-apply toward recovery."
+            : "Direct, team, rank, and loyalty credits — 24/7. Withdrawals debit the selected vault immediately."
+        }
       />
     </div>
   );

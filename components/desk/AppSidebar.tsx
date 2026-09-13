@@ -6,6 +6,7 @@ import { signOut } from "next-auth/react";
 import {
   ArrowDownLeft,
   ArrowUpRight,
+  Banknote,
   BarChart3,
   Gift,
   Landmark,
@@ -29,6 +30,7 @@ const userIcons: Record<string, typeof Wallet> = {
   "/dashboard": LayoutDashboard,
   "/dashboard/wallets": Wallet,
   "/dashboard/package": Package,
+  "/dashboard/loans": Banknote,
   "/dashboard/deposit": ArrowDownLeft,
   "/dashboard/withdraw": ArrowUpRight,
   "/dashboard/referrals": Users,
@@ -44,6 +46,7 @@ const adminIcons: Record<string, typeof Wallet> = {
   "/admin/users": Users,
   "/admin/support": Headset,
   "/admin/packages": Package,
+  "/admin/loans": Banknote,
   "/admin/queue": ArrowDownLeft,
   "/admin/rewards": Gift,
   "/admin/reports": BarChart3,

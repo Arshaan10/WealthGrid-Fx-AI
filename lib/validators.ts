@@ -87,3 +87,30 @@ export const treasuryTopupSchema = z.object({
   amount: z.coerce.number().positive().max(10_000_000),
   note: z.string().max(240).optional(),
 });
+
+export const flashLoanApplySchema = z.object({
+  amount: z.coerce.number().positive().max(10_000_000),
+  note: z.string().max(240).optional(),
+});
+
+export const flashLoanReviewSchema = z.object({
+  id: z.string().min(1),
+  decision: z.enum(["APPROVE", "REJECT"]),
+  amount: z.coerce.number().positive().max(10_000_000).optional(),
+  note: z.string().max(240).optional(),
+});
+
+export const packageActivateSchema = z.object({
+  amount: z.coerce.number().positive().max(10_000_000),
+  boosterTier: z.enum(["NONE", "BOOSTER", "SUPER", "ULTRA"]).default("NONE"),
+  fundingSource: z.enum(["SELF", "LOAN"]).default("SELF"),
+});
+
+export const adminPackageActivateSchema = z.object({
+  userId: z.string().min(1).optional(),
+  email: z.string().email().optional(),
+  amount: z.coerce.number().positive().max(10_000_000),
+  count: z.coerce.number().int().min(1).max(20).default(1),
+  fundingSource: z.enum(["ADMIN", "LOAN"]).default("ADMIN"),
+  note: z.string().max(240).optional(),
+});

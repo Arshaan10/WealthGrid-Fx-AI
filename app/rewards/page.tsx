@@ -4,7 +4,7 @@ import { RiskDisclaimer } from "@/components/brand/RiskDisclaimer";
 import { SectionHeading } from "@/components/brand/SectionHeading";
 import { MarketingShell } from "@/components/marketing/MarketingShell";
 import { RoutingBanner } from "@/components/desk/RoutingBanner";
-import { businessTurnover, caps, loyalty, packages, referrals, rewardsClock } from "@/config/rewards";
+import { boosters, businessTurnover, caps, flashLoan, loyalty, packages, referrals, rewardsClock } from "@/config/rewards";
 
 export const metadata: Metadata = { title: "Rewards" };
 
@@ -26,9 +26,10 @@ export default function RewardsPage() {
           <GlassCard>
             <h3 className="font-display text-2xl gold-text">Package trading</h3>
             <p className="mt-3 text-sm text-muted">
-              ~{pro.dailyRatePct}% daily illustration against the activated Pro
-              amount, up to {caps.tradingMultiple}× ({pro.maxReturnPct}%) on the package. Credits the
-              Trading wallet Monday–Friday in {rewardsClock.timezone}.
+              Regular / admin-grant desks illustrate {pro.dailyRatePct}% daily against the activated
+              amount, up to {caps.tradingMultiple}× ({pro.maxReturnPct}%). Booster tiers scale from
+              live ACTIVE first-line volume. Credits the Trading wallet Monday–Friday in{" "}
+              {rewardsClock.timezone}. Loan-funded packages skip daily ROI until the book is recovered.
             </p>
           </GlassCard>
           <GlassCard>
@@ -58,6 +59,21 @@ export default function RewardsPage() {
             <p className="mt-2 text-sm text-muted">{businessTurnover.note}</p>
           </GlassCard>
         </div>
+        <GlassCard className="mt-6">
+          <h3 className="font-display text-2xl gold-text">ROI boosters</h3>
+          <p className="mt-3 text-sm text-muted">{boosters.activeVolumeDefinition}</p>
+          <ul className="mt-4 space-y-2 text-sm text-muted">
+            {Object.values(boosters.tiers).map((tier) => (
+              <li key={tier.slug}>
+                <span className="text-gold">{tier.name}</span> — {tier.copy}
+              </li>
+            ))}
+          </ul>
+        </GlassCard>
+        <GlassCard className="mt-6">
+          <h3 className="font-display text-2xl gold-text">Flash loan recovery</h3>
+          <p className="mt-3 text-sm text-muted">{flashLoan.note}</p>
+        </GlassCard>
         <RiskDisclaimer className="mt-8" />
       </div>
     </MarketingShell>

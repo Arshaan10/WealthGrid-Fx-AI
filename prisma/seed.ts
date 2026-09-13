@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { packages, referrals, withdrawal } from "../config/rewards";
-import { eachTradingDay, parseDateKey, zonedDateKey, zonedIsoWeekKey } from "../lib/clock";
+import { addZonedMonths, eachTradingDay, parseDateKey, zonedDateKey, zonedIsoWeekKey } from "../lib/clock";
 
 const prisma = new PrismaClient();
 
@@ -127,6 +127,10 @@ async function main() {
     { email: "sofia@whealthgrid.com", name: "Sofia Mendes", phone: "+15550000009", code: "WG-SOFI01", daysAgo: 5, amount: null },
   ] as const;
 
+  const loanHash = await bcrypt.hash("Loan@12345", 12);
+  const boosterHash = await bcrypt.hash("Booster@12345", 12);
+  const recoveredHash = await bcrypt.hash("Recovered@12345", 12);
+
   const extraUsers: { id: string; email: string; name: string; amount: string | null }[] = [];
   for (const row of extras) {
     const user = await prisma.user.upsert({
@@ -197,13 +201,28 @@ async function main() {
     create: { userId: member.id, currentRank: "NONE", personalVolume: "200" },
   });
 
-  async function ensureActivation(userId: string, amount: string, startedAt: Date) {
+  async function ensureActivation(
+    userId: string,
+    amount: string,
+    startedAt: Date,
+    extra?: { fundingSource?: string; boosterTier?: string; flashLoanId?: string; roiStartsOn?: Date },
+  ) {
     const existing = await prisma.packageActivation.findFirst({
-      where: { userId, packageId: pro.id, status: { in: ["ACTIVE", "COMPLETED"] } },
+      where: { userId, packageId: pro.id, amount, status: { in: ["ACTIVE", "COMPLETED"] } },
     });
     if (existing) return existing;
     return prisma.packageActivation.create({
-      data: { userId, packageId: pro.id, amount, status: "ACTIVE", startedAt },
+      data: {
+        userId,
+        packageId: pro.id,
+        amount,
+        status: "ACTIVE",
+        startedAt,
+        fundingSource: extra?.fundingSource ?? "SELF",
+        boosterTier: extra?.boosterTier ?? "NONE",
+        flashLoanId: extra?.flashLoanId,
+        roiStartsOn: extra?.roiStartsOn,
+      },
     });
   }
 
@@ -725,7 +744,302 @@ async function main() {
     }
   }
 
-  for (const userId of [demo.id, member.id, ...extraUsers.map((row) => row.id)]) {
+  const loanUser = await prisma.user.upsert({
+    where: { email: "loan@whealthgrid.com" },
+    update: {
+      passwordHash: loanHash,
+      phone: "+15550000010",
+      emailVerified: now,
+      referredById: demo.id,
+    },
+    create: {
+      email: "loan@whealthgrid.com",
+      name: "Lina Kovacs",
+      phone: "+15550000010",
+      passwordHash: loanHash,
+      role: "USER",
+      emailVerified: now,
+      referralCode: "WG-LOAN01",
+      referredById: demo.id,
+      createdAt: noonUtc(16),
+    },
+  });
+
+  const boosterUser = await prisma.user.upsert({
+    where: { email: "booster@whealthgrid.com" },
+    update: {
+      passwordHash: boosterHash,
+      phone: "+15550000011",
+      emailVerified: now,
+    },
+    create: {
+      email: "booster@whealthgrid.com",
+      name: "Hassan Al-Farsi",
+      phone: "+15550000011",
+      passwordHash: boosterHash,
+      role: "USER",
+      emailVerified: now,
+      referralCode: "WG-BOOST1",
+      createdAt: noonUtc(14),
+    },
+  });
+
+  const recoveredUser = await prisma.user.upsert({
+    where: { email: "recovered@whealthgrid.com" },
+    update: {
+      passwordHash: recoveredHash,
+      phone: "+15550000012",
+      emailVerified: now,
+    },
+    create: {
+      email: "recovered@whealthgrid.com",
+      name: "Mira Solberg",
+      phone: "+15550000012",
+      passwordHash: recoveredHash,
+      role: "USER",
+      emailVerified: now,
+      referralCode: "WG-RECV01",
+      createdAt: noonUtc(80),
+    },
+  });
+
+  const whales = [
+    { email: "whale1@whealthgrid.com", name: "Whale Desk One", phone: "+15550000013", code: "WG-WHL01", amount: "30000" },
+    { email: "whale2@whealthgrid.com", name: "Whale Desk Two", phone: "+15550000014", code: "WG-WHL02", amount: "25000" },
+  ] as const;
+  const whaleUsers: { id: string; amount: string }[] = [];
+  for (const row of whales) {
+    const user = await prisma.user.upsert({
+      where: { email: row.email },
+      update: {
+        passwordHash: demoHash,
+        phone: row.phone,
+        emailVerified: now,
+        referredById: boosterUser.id,
+      },
+      create: {
+        email: row.email,
+        name: row.name,
+        phone: row.phone,
+        passwordHash: demoHash,
+        role: "USER",
+        emailVerified: now,
+        referralCode: row.code,
+        referredById: boosterUser.id,
+        createdAt: noonUtc(10),
+      },
+    });
+    whaleUsers.push({ id: user.id, amount: row.amount });
+  }
+
+  const scenarioUsers = [loanUser, boosterUser, recoveredUser, ...whaleUsers.map((row) => ({ id: row.id }))];
+  for (const row of scenarioUsers) await ensureWallets(row.id);
+
+  await prisma.referral.upsert({
+    where: { referrerId_refereeId: { referrerId: demo.id, refereeId: loanUser.id } },
+    update: {},
+    create: { referrerId: demo.id, refereeId: loanUser.id, level: 1 },
+  });
+  for (const whale of whaleUsers) {
+    await prisma.referral.upsert({
+      where: { referrerId_refereeId: { referrerId: boosterUser.id, refereeId: whale.id } },
+      update: {},
+      create: { referrerId: boosterUser.id, refereeId: whale.id, level: 1 },
+    });
+  }
+
+  if ((await prisma.flashLoanApplication.count({ where: { userId: member.id, status: "PENDING" } })) === 0) {
+    await prisma.flashLoanApplication.create({
+      data: {
+        userId: member.id,
+        requested: "800",
+        status: "PENDING",
+        note: "Seeded pending application for admin review",
+        createdAt: noonUtc(1),
+      },
+    });
+  }
+
+  if ((await prisma.flashLoan.count({ where: { userId: loanUser.id } })) === 0) {
+    const application = await prisma.flashLoanApplication.create({
+      data: {
+        userId: loanUser.id,
+        requested: "500",
+        status: "APPROVED",
+        note: "Seeded outstanding flash loan",
+        createdAt: noonUtc(12),
+        reviewedAt: noonUtc(11),
+        reviewedBy: admin.id,
+      },
+    });
+    const loan = await prisma.flashLoan.create({
+      data: {
+        userId: loanUser.id,
+        applicationId: application.id,
+        requested: "500",
+        approved: "500",
+        principal: "500",
+        repaid: "150",
+        status: "OUTSTANDING",
+        approvedAt: noonUtc(11),
+      },
+    });
+    await ensureActivation(loanUser.id, "500", noonUtc(10), {
+      fundingSource: "LOAN",
+      boosterTier: "NONE",
+      flashLoanId: loan.id,
+    });
+    await prisma.ledgerEntry.createMany({
+      data: [
+        {
+          userId: loanUser.id,
+          walletType: "NETWORK",
+          direction: "DEBIT",
+          category: "LOAN",
+          amount: "500",
+          balanceAfter: "-500",
+          description: "Flash loan liability 500.00 — Network vault",
+          refId: loan.id,
+          createdAt: noonUtc(11),
+        },
+        {
+          userId: loanUser.id,
+          walletType: "NETWORK",
+          direction: "CREDIT",
+          category: "REFERRAL",
+          amount: "150",
+          balanceAfter: "-350",
+          description: "Seeded network credit applied to flash-loan recovery",
+          createdAt: noonUtc(4),
+        },
+      ],
+    });
+    await prisma.rankProgress.upsert({
+      where: { userId: loanUser.id },
+      update: { personalVolume: "500" },
+      create: { userId: loanUser.id, currentRank: "NONE", personalVolume: "500" },
+    });
+  }
+
+  if ((await prisma.flashLoan.count({ where: { userId: recoveredUser.id } })) === 0) {
+    const recoveredAt = noonUtc(20);
+    const application = await prisma.flashLoanApplication.create({
+      data: {
+        userId: recoveredUser.id,
+        requested: "400",
+        status: "APPROVED",
+        note: "Seeded recovered flash loan",
+        createdAt: noonUtc(70),
+        reviewedAt: noonUtc(69),
+        reviewedBy: admin.id,
+      },
+    });
+    const loan = await prisma.flashLoan.create({
+      data: {
+        userId: recoveredUser.id,
+        applicationId: application.id,
+        requested: "400",
+        approved: "400",
+        principal: "400",
+        repaid: "400",
+        status: "RECOVERED",
+        approvedAt: noonUtc(69),
+        recoveredAt,
+        coolingUntil: addZonedMonths(recoveredAt, 2),
+      },
+    });
+    await ensureActivation(recoveredUser.id, "400", noonUtc(68), {
+      fundingSource: "LOAN",
+      boosterTier: "NONE",
+      flashLoanId: loan.id,
+      roiStartsOn: noonUtc(19),
+    });
+    await prisma.ledgerEntry.createMany({
+      data: [
+        {
+          userId: recoveredUser.id,
+          walletType: "NETWORK",
+          direction: "DEBIT",
+          category: "LOAN",
+          amount: "400",
+          balanceAfter: "-400",
+          description: "Flash loan liability 400.00 — Network vault",
+          createdAt: noonUtc(69),
+        },
+        {
+          userId: recoveredUser.id,
+          walletType: "NETWORK",
+          direction: "CREDIT",
+          category: "REFERRAL",
+          amount: "400",
+          balanceAfter: "0",
+          description: "Seeded full flash-loan recovery",
+          createdAt: recoveredAt,
+        },
+      ],
+    });
+    await prisma.rankProgress.upsert({
+      where: { userId: recoveredUser.id },
+      update: { personalVolume: "400" },
+      create: { userId: recoveredUser.id, currentRank: "NONE", personalVolume: "400" },
+    });
+  }
+
+  await ensureActivation(boosterUser.id, "200", noonUtc(9), { fundingSource: "SELF", boosterTier: "ULTRA" });
+  if ((await prisma.ledgerEntry.count({ where: { userId: boosterUser.id, category: "PACKAGE" } })) === 0) {
+    await prisma.ledgerEntry.createMany({
+      data: [
+        {
+          userId: boosterUser.id,
+          walletType: "TRADING",
+          direction: "CREDIT",
+          category: "DEPOSIT",
+          amount: "300",
+          balanceAfter: "300",
+          description: "Seeded trading deposit for Ultra booster",
+          createdAt: noonUtc(10),
+        },
+        {
+          userId: boosterUser.id,
+          walletType: "TRADING",
+          direction: "DEBIT",
+          category: "PACKAGE",
+          amount: "200",
+          balanceAfter: "100",
+          description: "Activated Pro package $200 (ULTRA)",
+          createdAt: noonUtc(9),
+        },
+      ],
+    });
+  }
+  await prisma.rankProgress.upsert({
+    where: { userId: boosterUser.id },
+    update: { personalVolume: "200" },
+    create: { userId: boosterUser.id, currentRank: "NONE", personalVolume: "200" },
+  });
+
+  for (const whale of whaleUsers) {
+    await ensureActivation(whale.id, whale.amount, noonUtc(8), { fundingSource: "ADMIN", boosterTier: "NONE" });
+    await prisma.rankProgress.upsert({
+      where: { userId: whale.id },
+      update: { personalVolume: whale.amount },
+      create: { userId: whale.id, currentRank: "NONE", personalVolume: whale.amount },
+    });
+  }
+
+  if ((await prisma.packageActivation.count({ where: { userId: demo.id, fundingSource: "ADMIN" } })) === 0) {
+    await ensureActivation(demo.id, "150", noonUtc(3), { fundingSource: "ADMIN", boosterTier: "NONE" });
+  }
+
+  for (const userId of [
+    demo.id,
+    member.id,
+    loanUser.id,
+    boosterUser.id,
+    recoveredUser.id,
+    ...extraUsers.map((row) => row.id),
+    ...whaleUsers.map((row) => row.id),
+  ]) {
     await recomputeWallet(userId, "TRADING");
     await recomputeWallet(userId, "NETWORK");
   }
@@ -736,7 +1050,7 @@ async function main() {
       action: "SEED",
       entity: "SYSTEM",
       meta: JSON.stringify({
-        message: "Analytics + 2×/3× cap seed applied",
+        message: "Analytics + flash loan + booster seed applied",
         date: parseDateKey(zonedDateKey(now)).toISOString(),
       }),
     },
@@ -746,6 +1060,9 @@ async function main() {
   console.log("  admin@whealthgrid.com / Admin@12345");
   console.log("  demo@whealthgrid.com  / Demo@12345");
   console.log("  member@whealthgrid.com / Member@12345 (bonus demo downline)");
+  console.log("  loan@whealthgrid.com / Loan@12345 (outstanding flash loan, Network −$350)");
+  console.log("  booster@whealthgrid.com / Booster@12345 (Ultra + $55k active directs)");
+  console.log("  recovered@whealthgrid.com / Recovered@12345 (cooling period after recovery)");
 }
 
 main()

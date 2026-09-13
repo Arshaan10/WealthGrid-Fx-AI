@@ -60,6 +60,30 @@ export function addUtcDays(date: Date, days: number): Date {
   return next;
 }
 
+/** Noon-UTC instant for `date`'s calendar day in the rewards timezone, plus `days`. */
+export function addZonedCalendarDays(date: Date, days: number, timeZone = rewardsClock.timezone): Date {
+  return addUtcDays(parseDateKey(zonedDateKey(date, timeZone)), days);
+}
+
+/**
+ * Add calendar months in the rewards timezone, clamping the day (e.g. Jan 31 + 1 month → Feb 28/29).
+ * Used for flash-loan cooling (`recoveredAt` + 2 months).
+ */
+export function addZonedMonths(date: Date, months: number, timeZone = rewardsClock.timezone): Date {
+  const key = zonedDateKey(date, timeZone);
+  const [year, month, day] = key.split("-").map(Number);
+  const probe = new Date(Date.UTC(year, month - 1 + months, 1, 12, 0, 0));
+  const lastDay = new Date(Date.UTC(probe.getUTCFullYear(), probe.getUTCMonth() + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(probe.getUTCFullYear(), probe.getUTCMonth(), Math.min(day, lastDay), 12, 0, 0));
+}
+
+/** Whole Asia/Dubai calendar days from `from` until `target` (negative if past). */
+export function zonedDaysUntil(target: Date, from: Date = new Date(), timeZone = rewardsClock.timezone): number {
+  const a = parseDateKey(zonedDateKey(from, timeZone)).getTime();
+  const b = parseDateKey(zonedDateKey(target, timeZone)).getTime();
+  return Math.round((b - a) / 86_400_000);
+}
+
 export function eachCalendarDay(from: Date, to: Date): Date[] {
   const start = parseDateKey(zonedDateKey(from));
   const end = parseDateKey(zonedDateKey(to));

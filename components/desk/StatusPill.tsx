@@ -7,11 +7,14 @@ export function StatusPill({ status }: { status: string }) {
     status === "CONFIRMED" ||
     status === "PAID" ||
     status === "ACTIVE" ||
+    status === "RECOVERED" ||
     status === "published" ||
     status === "CREDIT" ||
     status === "TOPUP" ||
     status === "OPEN" ||
-    status === "VERIFIED"
+    status === "VERIFIED" ||
+    status === "SELF" ||
+    status === "ADMIN"
       ? "text-success border-success/30 bg-success/10"
       : status === "REJECTED" ||
           status === "CANCELLED" ||
@@ -19,7 +22,9 @@ export function StatusPill({ status }: { status: string }) {
           status === "DEBIT" ||
           status === "PAYOUT" ||
           status === "CLOSED" ||
-          status === "BLOCKED"
+          status === "BLOCKED" ||
+          status === "OUTSTANDING" ||
+          status === "LOAN"
         ? "text-danger border-danger/30 bg-danger/10"
         : "text-gold border-gold-line bg-gold-dim";
 

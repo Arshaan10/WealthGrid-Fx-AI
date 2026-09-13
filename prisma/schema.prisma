@@ -43,6 +43,8 @@ model User {
   treasuryMoves     TreasuryMovement[]
   tickets           SupportTicket[]
   ticketMessages    SupportMessage[]
+  loanApplications  FlashLoanApplication[]
+  flashLoans        FlashLoan[]
 }
 
 model WalletBalance {
@@ -85,15 +87,59 @@ model Package {
 }
 
 model PackageActivation {
-  id        String    @id @default(cuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  packageId String
-  package   Package   @relation(fields: [packageId], references: [id])
-  amount    Decimal
-  status    String    @default("ACTIVE") // ACTIVE | COMPLETED | CANCELLED
-  startedAt DateTime  @default(now())
-  endsAt    DateTime?
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packageId     String
+  package       Package   @relation(fields: [packageId], references: [id])
+  amount        Decimal
+  status        String    @default("ACTIVE") // ACTIVE | COMPLETED | CANCELLED
+  /** SELF = member Trading wallet; LOAN = flash-loan funded; ADMIN = admin grant */
+  fundingSource String    @default("SELF") // SELF | LOAN | ADMIN
+  /** NONE = regular 1%/day; BOOSTER | SUPER | ULTRA adjust from live direct volume */
+  boosterTier   String    @default("NONE") // NONE | BOOSTER | SUPER | ULTRA
+  /** First Asia/Dubai calendar day this package may earn daily ROI (loan recovery + 1 day). */
+  roiStartsOn   DateTime?
+  flashLoanId   String?   @unique
+  flashLoan     FlashLoan? @relation(fields: [flashLoanId], references: [id])
+  startedAt     DateTime  @default(now())
+  endsAt        DateTime?
+}
+
+model FlashLoanApplication {
+  id         String     @id @default(cuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requested  Decimal
+  status     String     @default("PENDING") // PENDING | APPROVED | REJECTED
+  note       String?
+  createdAt  DateTime   @default(now())
+  reviewedAt DateTime?
+  reviewedBy String?
+  loan       FlashLoan?
+
+  @@index([userId, status])
+}
+
+model FlashLoan {
+  id            String                @id @default(cuid())
+  userId        String
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applicationId String                @unique
+  application   FlashLoanApplication  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  requested     Decimal
+  approved      Decimal
+  /** Source of truth for remaining = principal − repaid. Network available mirrors the liability. */
+  principal     Decimal
+  repaid        Decimal               @default(0)
+  status        String                @default("OUTSTANDING") // OUTSTANDING | RECOVERED
+  approvedAt    DateTime              @default(now())
+  recoveredAt   DateTime?
+  /** Earliest next-loan approval: recoveredAt + coolingMonths (Asia/Dubai calendar). */
+  coolingUntil  DateTime?
+  activation    PackageActivation?
+
+  @@index([userId, status])
 }
 
 model Referral {
