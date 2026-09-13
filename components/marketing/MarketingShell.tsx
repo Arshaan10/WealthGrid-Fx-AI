@@ -12,7 +12,7 @@ export function MarketingShell({
   atmosphere?: "page" | "hero";
 }) {
   return (
-    <div className="relative min-h-screen">
+    <div className="relative isolate min-h-screen overflow-x-hidden">
       <ForexAtmosphere variant={atmosphere} />
       <MarketingHeader />
       <div className="relative z-20">

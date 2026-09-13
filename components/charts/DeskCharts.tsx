@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { formatUsd } from "@/lib/utils";
 
 type DualPoint = { label: string; trading: number; network: number };
@@ -14,6 +15,22 @@ function niceMax(value: number) {
   const pow = 10 ** Math.floor(Math.log10(value));
   const n = Math.ceil(value / pow);
   return (n <= 2 ? 2 : n <= 5 ? 5 : 10) * pow;
+}
+
+function ChartFrame({
+  height,
+  children,
+  label,
+}: {
+  height: number;
+  children: ReactNode;
+  label?: string;
+}) {
+  return (
+    <div className="w-full min-w-0 overflow-hidden" style={{ height }} role={label ? "img" : undefined} aria-label={label}>
+      {children}
+    </div>
+  );
 }
 
 export function DualAreaChart({
@@ -51,7 +68,8 @@ export function DualAreaChart({
   const ticks = points.filter((_, i) => i === 0 || i === points.length - 1 || i % 7 === 0);
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full" role="img" aria-label="Earnings over time">
+    <ChartFrame height={height} label="Earnings over time">
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Earnings over time">
       <defs>
         <linearGradient id="tradeFill" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#d4af37" stopOpacity="0.35" />
@@ -103,6 +121,7 @@ export function DualAreaChart({
         );
       })}
     </svg>
+    </ChartFrame>
   );
 }
 
@@ -124,7 +143,8 @@ export function GoldBarChart({
   const barW = points.length ? (innerW - gap * points.length) / points.length : 0;
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full" role="img">
+    <ChartFrame height={height}>
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full" preserveAspectRatio="xMidYMid meet" role="img">
       {points.map((point, i) => {
         const h = (point.value / peak) * innerH;
         const x = pad.left + i * (barW + gap) + gap / 2;
@@ -140,6 +160,7 @@ export function GoldBarChart({
         );
       })}
     </svg>
+    </ChartFrame>
   );
 }
 
@@ -161,7 +182,8 @@ export function GroupedVolumeChart({
   const sample = points.filter((_, i) => i === 0 || i === points.length - 1 || i % 4 === 0);
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full" role="img" aria-label="Deposit and withdrawal volume">
+    <ChartFrame height={height} label="Deposit and withdrawal volume">
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Deposit and withdrawal volume">
       {points.map((point, i) => {
         const x = pad.left + i * (groupW + gap) + gap / 2;
         const dH = (point.deposits / peak) * innerH;
@@ -197,6 +219,7 @@ export function GroupedVolumeChart({
         );
       })}
     </svg>
+    </ChartFrame>
   );
 }
 
@@ -213,8 +236,8 @@ export function DonutChart({
   let offset = 0;
 
   return (
-    <div className="flex items-center gap-5">
-      <svg viewBox="0 0 120 120" className="h-36 w-36 shrink-0" role="img">
+    <div className="flex min-w-0 flex-col items-center gap-4 sm:flex-row sm:items-center">
+      <svg viewBox="0 0 120 120" className="h-32 w-32 shrink-0 sm:h-36 sm:w-36" role="img">
         <circle cx="60" cy="60" r={r} fill="none" stroke="rgba(212,175,55,0.12)" strokeWidth="14" />
         {slices.map((slice) => {
           const len = (slice.value / total) * c;
@@ -243,12 +266,12 @@ export function DonutChart({
           </text>
         ) : null}
       </svg>
-      <ul className="space-y-2 text-sm">
+      <ul className="w-full min-w-0 flex-1 space-y-2 text-sm">
         {slices.map((slice) => (
-          <li key={slice.label} className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ background: slice.color }} />
-            <span className="text-muted">{slice.label}</span>
-            <span className="ml-auto font-medium text-cream">{formatUsd(slice.value)}</span>
+          <li key={slice.label} className="flex min-w-0 items-center gap-2">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: slice.color }} />
+            <span className="min-w-0 truncate text-muted">{slice.label}</span>
+            <span className="ml-auto shrink-0 font-medium tabular-nums text-cream">{formatUsd(slice.value)}</span>
           </li>
         ))}
       </ul>

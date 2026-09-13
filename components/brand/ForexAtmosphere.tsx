@@ -1,18 +1,23 @@
 export function ForexAtmosphere({ variant = "page" }: { variant?: "page" | "hero" | "desk" }) {
-  const intensity = variant === "hero" ? 1 : variant === "desk" ? 0.72 : 0.88;
+  const intensity = variant === "hero" ? 1 : variant === "desk" ? 0.55 : 0.88;
   const gid = `gold-stroke-${variant}`;
 
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute inset-0 overflow-hidden"
+      className="pointer-events-none fixed inset-0 z-0 h-full w-full overflow-hidden"
       style={{ opacity: intensity }}
     >
       <div className="absolute inset-0 desk-grid" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(212,175,55,0.08),transparent_55%)]" />
       <div className="absolute -left-16 top-[-8%] h-[520px] w-[520px] rounded-full bg-[radial-gradient(circle,rgba(212,175,55,0.22),transparent_68%)] blur-2xl" />
       <div className="absolute right-[-6%] top-[12%] h-[460px] w-[460px] rounded-full bg-[radial-gradient(circle,rgba(212,175,55,0.16),transparent_70%)]" />
-      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
+      <svg
+        className="absolute inset-0 h-full w-full max-w-none"
+        viewBox="0 0 1440 900"
+        preserveAspectRatio="xMidYMid slice"
+        focusable="false"
+      >
         <defs>
           <linearGradient id={gid} x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor="#d4af37" stopOpacity="0" />
@@ -69,6 +74,9 @@ export function ForexAtmosphere({ variant = "page" }: { variant?: "page" | "hero
           </text>
         </g>
       </svg>
+      {variant === "desk" ? (
+        <div className="absolute inset-0 bg-[var(--bg-void)]/55" />
+      ) : null}
       <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[var(--bg-void)] to-transparent" />
     </div>
   );

@@ -22,10 +22,13 @@ html,
 body {
   background: var(--bg-void);
   color: var(--cream);
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 body {
   min-height: 100vh;
+  min-height: 100dvh;
   font-feature-settings: "ss01", "kern";
 }
 

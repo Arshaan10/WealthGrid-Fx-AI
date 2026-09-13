@@ -5,7 +5,7 @@ import { rewardsClock, walletRouting } from "@/config/rewards";
 export function RoutingBanner() {
   return (
     <GlassCard className="p-5">
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
         <div className="rounded-xl border border-gold-line/40 bg-black/30 p-4">
           <div className="flex items-center gap-2 text-gold">
             <Wallet size={16} />
