@@ -38,7 +38,8 @@ export const rewardsClock = {
 
 /**
  * Lifetime earning ceilings relative to activated package principal
- * (sum of ACTIVE + COMPLETED activations).
+ * (sum of ACTIVE + COMPLETED paid principal — SELF / ADMIN / recovered LOAN.
+ * Unpaid flash-loan packages are excluded so they cannot inflate the ceiling).
  */
 export const caps = {
   /** Daily trading / package ROI: member can earn up to 2× principal. */
