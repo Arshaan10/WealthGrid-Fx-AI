@@ -3,7 +3,8 @@ import { GlassCard } from "@/components/brand/GlassCard";
 import { RiskDisclaimer } from "@/components/brand/RiskDisclaimer";
 import { SectionHeading } from "@/components/brand/SectionHeading";
 import { MarketingShell } from "@/components/marketing/MarketingShell";
-import { businessTurnover, loyalty, packages, referrals } from "@/config/rewards";
+import { RoutingBanner } from "@/components/desk/RoutingBanner";
+import { businessTurnover, caps, loyalty, packages, referrals, rewardsClock } from "@/config/rewards";
 
 export const metadata: Metadata = { title: "Rewards" };
 
@@ -16,21 +17,25 @@ export default function RewardsPage() {
         <SectionHeading
           kicker="Structure"
           title="How rewards are configured"
-          lede="These figures describe the Phase 1 schedule. They are not a forecast and they are not paid on-chain yet."
+          lede="These figures describe the configured schedule. They are not a forecast. Daily trading ROI books Monday–Friday only."
         />
-        <div className="mt-10 grid gap-4 md:grid-cols-2">
+        <div className="mt-10">
+          <RoutingBanner />
+        </div>
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
           <GlassCard>
             <h3 className="font-display text-2xl gold-text">Package trading</h3>
             <p className="mt-3 text-sm text-muted">
               ~{pro.dailyRatePct}% daily illustration against the activated Pro
-              amount, up to ~{pro.maxReturnPct}% on the package.
+              amount, up to {caps.tradingMultiple}× ({pro.maxReturnPct}%) on the package. Credits the
+              Trading wallet Monday–Friday in {rewardsClock.timezone}.
             </p>
           </GlassCard>
           <GlassCard>
             <h3 className="font-display text-2xl gold-text">Direct referral</h3>
             <p className="mt-3 text-sm text-muted">
               {referrals.directPct}% of a first-line activation, booked to the
-              Network wallet when a referred member activates.
+              Network wallet 24/7 when a referred member activates (counts toward the {caps.networkMultiple}× network cap).
             </p>
           </GlassCard>
           <GlassCard>

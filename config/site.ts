@@ -17,6 +17,7 @@ export const userNav = [
   { href: "/dashboard/withdraw", label: "Withdraw" },
   { href: "/dashboard/referrals", label: "Referrals" },
   { href: "/dashboard/rewards", label: "Rewards" },
+  { href: "/dashboard/reports", label: "Reports" },
   { href: "/dashboard/support", label: "Support" },
   { href: "/dashboard/profile", label: "Profile" },
 ] as const;
@@ -29,6 +30,7 @@ export const adminNav = [
   { href: "/admin/packages", label: "Packages" },
   { href: "/admin/queue", label: "Deposit queue" },
   { href: "/admin/rewards", label: "Reward config" },
+  { href: "/admin/reports", label: "Reports" },
   { href: "/admin/ranks", label: "Ranks" },
   { href: "/admin/announcements", label: "Announcements" },
   { href: "/admin/audit", label: "Audit log" },

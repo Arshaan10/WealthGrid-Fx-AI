@@ -6,7 +6,8 @@ import { authOptions } from "@/lib/auth";
 import { packages, referrals } from "@/config/rewards";
 import { writeAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
-import { creditWallet, debitAvailable } from "@/lib/wallets";
+import { creditCappedReward } from "@/lib/rewards";
+import { debitAvailable } from "@/lib/wallets";
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -86,22 +87,12 @@ export async function POST(request: Request) {
 
     if (user?.referredById) {
       const bonus = new Prisma.Decimal(amount).mul(referrals.directPct).div(100);
-      const payout = await prisma.rewardPayout.create({
-        data: {
-          userId: user.referredById,
-          type: "DIRECT",
-          amount: bonus,
-          status: "PAID",
-          note: `${referrals.directPct}% direct on ${user.name} activation`,
-        },
-      });
-      await creditWallet({
+      await creditCappedReward({
         userId: user.referredById,
-        type: "NETWORK",
+        type: "DIRECT",
         amount: bonus,
-        category: "REFERRAL",
-        description: payout.note ?? "Direct referral",
-        refId: payout.id,
+        note: `${referrals.directPct}% direct on ${user.name} activation → Network wallet`,
+        periodKey: `DIRECT:${activation.id}`,
       });
     }
 

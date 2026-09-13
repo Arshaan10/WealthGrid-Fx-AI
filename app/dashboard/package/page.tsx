@@ -2,14 +2,17 @@ import { GlassCard } from "@/components/brand/GlassCard";
 import { RiskDisclaimer } from "@/components/brand/RiskDisclaimer";
 import { StatusPill } from "@/components/desk/StatusPill";
 import { ActivatePackageForm } from "@/components/desk/ActivatePackageForm";
-import { packages } from "@/config/rewards";
+import { DualCapProgress } from "@/components/desk/CapBar";
+import { RoutingBanner } from "@/components/desk/RoutingBanner";
+import { caps, packages } from "@/config/rewards";
+import { getCapSnapshot } from "@/lib/rewards";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { asNumber, formatUsd } from "@/lib/utils";
 
 export default async function PackagePage() {
   const session = await requireUser();
-  const [activation, trading] = await Promise.all([
+  const [activation, trading, capSnap] = await Promise.all([
     prisma.packageActivation.findFirst({
       where: { userId: session.user.id },
       orderBy: { startedAt: "desc" },
@@ -18,6 +21,7 @@ export default async function PackagePage() {
     prisma.walletBalance.findUnique({
       where: { userId_type: { userId: session.user.id, type: "TRADING" } },
     }),
+    getCapSnapshot(session.user.id),
   ]);
   const pro = packages[0];
 
@@ -28,11 +32,21 @@ export default async function PackagePage() {
         <h2 className="mt-2 font-display text-4xl">Activate from ${pro.minAmountUsd}</h2>
         <p className="mt-3 max-w-2xl text-sm text-muted">{pro.blurb}</p>
         <dl className="mt-6 grid gap-3 sm:grid-cols-3 text-sm">
-          <div>Daily ~{pro.dailyRatePct}%</div>
-          <div>Package cap ~{pro.maxReturnPct}%</div>
-          <div>Network toward ~{pro.networkCapPct}%</div>
+          <div>Daily ~{pro.dailyRatePct}% (Mon–Fri → Trading)</div>
+          <div>Trading cap {caps.tradingMultiple}× ({pro.maxReturnPct}%)</div>
+          <div>Network cap {caps.networkMultiple}× ({pro.networkCapPct}%)</div>
         </dl>
       </GlassCard>
+      <RoutingBanner />
+      {capSnap.principal > 0 ? (
+        <DualCapProgress
+          principal={capSnap.principal}
+          tradingEarned={capSnap.tradingEarned}
+          tradingCap={capSnap.tradingCap}
+          networkEarned={capSnap.networkEarned}
+          networkCap={capSnap.networkCap}
+        />
+      ) : null}
 
       {activation ? (
         <GlassCard>

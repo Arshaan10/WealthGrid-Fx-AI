@@ -81,8 +81,8 @@ export default function HomePage() {
             <p className="mt-2 font-display text-5xl gold-text">From ${pro.minAmountUsd}</p>
             <ul className="mt-6 space-y-3 text-sm text-muted">
               <li>Illustrative daily credit ~{pro.dailyRatePct}% of activated amount</li>
-              <li>Package-side ceiling ~{pro.maxReturnPct}% of the package</li>
-              <li>Network-side composite toward ~{pro.networkCapPct}%</li>
+              <li>Trading ROI ceiling {pro.maxReturnPct / 100}× ({pro.maxReturnPct}%) of the package — Trading wallet, Mon–Fri</li>
+              <li>Network ceiling {pro.networkCapPct / 100}× ({pro.networkCapPct}%) — Network wallet, 24/7</li>
             </ul>
             <GoldLink href="/packages" className="mt-8">
               Package details

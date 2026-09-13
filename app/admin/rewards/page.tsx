@@ -1,10 +1,14 @@
+import { RunDailyRewards } from "@/components/admin/RunDailyRewards";
 import { GlassCard } from "@/components/brand/GlassCard";
 import { RiskDisclaimer } from "@/components/brand/RiskDisclaimer";
+import { RoutingBanner } from "@/components/desk/RoutingBanner";
 import {
   businessTurnover,
+  caps,
   loyalty,
   packages,
   referrals,
+  rewardsClock,
   withdrawal,
 } from "@/config/rewards";
 import { requireAdmin } from "@/lib/session";
@@ -18,18 +22,25 @@ export default async function AdminRewardsPage() {
       <GlassCard>
         <h2 className="font-display text-3xl">Reward configuration</h2>
         <p className="mt-2 text-sm text-muted">
-          Read-only view of <code>config/rewards.ts</code>. Edit the file and
-          re-seed the Pro package to change live numbers.
+          Read-only view of <code>config/rewards.ts</code>. Caps and wallet routing are enforced in{" "}
+          <code>lib/rewards.ts</code>. Edit the file and re-seed the Pro package to change live numbers.
         </p>
       </GlassCard>
+      <RoutingBanner />
+      <RunDailyRewards />
       <div className="grid gap-4 md:grid-cols-2">
         <GlassCard>
           <h3 className="font-display text-2xl gold-text">{pro.name}</h3>
           <ul className="mt-3 space-y-2 text-sm text-muted">
             <li>Min ${pro.minAmountUsd}</li>
             <li>Daily ~{pro.dailyRatePct}%</li>
-            <li>Package cap ~{pro.maxReturnPct}%</li>
-            <li>Network toward ~{pro.networkCapPct}%</li>
+            <li>
+              Trading cap {caps.tradingMultiple}× ({pro.maxReturnPct}% of principal) → Trading wallet
+            </li>
+            <li>
+              Network cap {caps.networkMultiple}× ({pro.networkCapPct}% of principal) → Network wallet
+            </li>
+            <li>Timezone {rewardsClock.timezone} · Mon–Fri trading credits</li>
           </ul>
         </GlassCard>
         <GlassCard>

@@ -6,17 +6,17 @@ Marketing site, member dashboard, and admin dashboard on **Next.js App Router**,
 
 Brand spelling is **Whealth**, not Wealth.
 
-Package, referral, rank, gift, and withdrawal-fee numbers live in [`config/rewards.ts`](config/rewards.ts).
+Package, referral, rank, gift, withdrawal-fee, **2× / 3× caps**, and **wallet routing** live in [`config/rewards.ts`](config/rewards.ts). The daily job that books those credits is `npm run rewards:daily`.
 
 ## What is included
 
 - Public pages: Home, About, Packages, Rewards, Ranks, How it works, FAQ, Contact, Login, Register, email verify
 - Live Forex pairs ticker (gold/black marquee) on marketing pages and the member desk
-- Member desk (`/dashboard`): wallets + ledger, activate Pro, **wallet-connect deposit**, **auto-approved withdraw + optional on-chain send**, referrals, rewards, **support tickets**, profile / KYC-lite
-- Admin desk (`/admin`): treasury / payout pool + company hot-wallet address, users (**block/unblock** + edit withdrawal wallet), **support tickets**, packages/activations, deposit queue (tx hash + verify), withdrawal history (send status / retry), reward config view, ranks, announcements CRUD, audit log
+- Member desk (`/dashboard`): wallets + ledger, **analytics / reports**, activate Pro, **wallet-connect deposit**, **auto-approved withdraw + optional on-chain send**, referrals, rewards, **support tickets**, profile / KYC-lite
+- Admin desk (`/admin`): **platform analytics**, printable reports, treasury / payout pool + company hot-wallet address, users (**block/unblock** + edit withdrawal wallet), **support tickets**, packages/activations, deposit queue (tx hash + verify), withdrawal history (send status / retry), reward config + **daily reward job**, ranks, announcements CRUD, audit log
 - Lifetime business data in Prisma (users, wallets, ledger, packages, referrals, payouts, ranks, intents, treasury, announcements, support tickets, audit)
 
-**This is not a promise of profit.** Daily ~0.5%, 250% package cap, and 400% network figures are a configured structure. Forex involves substantial risk of loss. On-chain sends move real USDT when keys are configured — treat the hot wallet as production funds.
+**This is not a promise of profit.** Daily ~0.5%, **2× trading cap**, and **3× network cap** are a configured structure. Forex involves substantial risk of loss. On-chain sends move real USDT when keys are configured — treat the hot wallet as production funds.
 
 ## Stack
 
@@ -106,7 +106,7 @@ Without a private key / RPC / USDT contract, skip steps 3–5. The desk stays un
 | Demo member | demo@whealthgrid.com | Demo@12345 |
 | Demo downline | member@whealthgrid.com | Member@12345 |
 
-Demo ships with an active **Pro** package, sample ledger, a pending deposit, an **auto-approved** withdrawal, and a **company treasury** seeded at **$10,000** (minus the demo payout) so members can withdraw.
+Demo ships with an active **Pro** package, several weeks of **Mon–Fri trading credits** and network rewards (so charts are populated), a pending deposit, **auto-approved** withdrawals, extra downline desks, and a **company treasury** seeded at **$10,000** (minus demo payouts) so members can withdraw.
 
 Referral code on the demo desk: `WG-DEMO01`. Seed users have unique phones and a verified inbox so deposit/withdraw works immediately.
 
@@ -136,15 +136,59 @@ From `/admin/users/[id]`:
 - Admin: `/admin/support` — list all, reply, set status **OPEN / PENDING / CLOSED**.
 - Stored as `SupportTicket` + `SupportMessage` in Prisma.
 
+## Reward structure, caps, and wallet routing
+
+Numbers and routing rules live in [`config/rewards.ts`](config/rewards.ts) and are **enforced** in [`lib/rewards.ts`](lib/rewards.ts) — not UI-only.
+
+### Caps
+
+| Book | Multiple | Basis | Wallet |
+| --- | --- | --- | --- |
+| Daily trading ROI | **2×** (`caps.tradingMultiple`, `maxReturnPct` 200) | Sum of ACTIVE + COMPLETED package principal | Trading |
+| Network rewards | **3×** (`caps.networkMultiple`, `networkCapPct` 300) | Same principal | Network |
+
+Progress bars on the member overview and package/rewards pages show earned vs each ceiling. When the 2× trading book is full, further daily credits are skipped and the package is marked **COMPLETED**.
+
+### Wallet routing
+
+- **Trading rewards Mon–Fri → Trading wallet.** Daily ROI (`DAILY`) is the only trading-book type. Saturday and Sunday are skipped.
+- **Network rewards 24/7 → Network wallet.** Direct referral, team trading, ranks, loyalty, turnover, and any withdrawal-related network bonuses.
+- Withdrawals stay split: the member picks Trading or Network. Analytics show both vaults.
+
+### Timezone
+
+Trading days are evaluated in **`Asia/Dubai`** (`rewardsClock.timezone`, UTC+4, no DST). Change the IANA name in config if the desk should use UTC or another zone; the job, seed, and UI all read that value.
+
+### Daily reward job
+
+```bash
+npm run rewards:daily
+npm run rewards:daily -- --date=2026-09-11
+```
+
+Or **Admin desk → Reward config → Run daily rewards** (`POST /api/admin/rewards/run`).
+
+The job is idempotent (`RewardPayout.periodKey`, e.g. `DAILY:2026-09-12`). For each active package it:
+
+1. Credits **Mon–Fri** daily ROI to **Trading**, respecting the **2×** remaining cap.
+2. Credits **team-trading** percents of that day’s daily amount up the referral tree to **Network** (**3×** cap, any day).
+3. Credits **weekly loyalty** (`loyalty.weeklyPct`) to **Network** once per ISO week (**3×** cap, 24/7).
+
+Schedule it with cron if you want unattended runs, for example Monday–Friday after Dubai midnight:
+
+```cron
+5 0 * * 1-5 cd /path/to/app && npm run rewards:daily
+```
+
 ## Reward structure (config)
 
 - **Pro** from **$50**
-- Illustrative daily **~0.5%**, package ceiling **~250%**, network toward **~400%**
-- Direct referral **7%**
-- Team trading **L1–L20** (declining schedule in config)
+- Illustrative daily **~0.5%**, trading ceiling **2× (200%)**, network ceiling **3× (300%)**
+- Direct referral **7%** → Network wallet
+- Team trading **L1–L20** (declining schedule in config) → Network wallet
 - Ranks: **Elite 1–7**, **Director**, **Founder**
-- Loyalty: weekly (display)
-- Business turnover: Founder+ (display)
+- Loyalty: weekly, Network wallet
+- Business turnover: Founder+ (display / Network when paid)
 - Gift catalog: earbuds, phone, laptop, MacBook, trips, cars (display items)
 - **Withdrawal fee 5%** (`withdrawal.feePct` in config)
 
@@ -194,6 +238,8 @@ npm run lint
 npm run db:push
 npm run db:seed
 npm run db:setup
+npm run rewards:daily
+npm run rewards:daily -- --date=2026-09-11
 ```
 
 `npm run build` must succeed without a real private key.
@@ -201,9 +247,12 @@ npm run db:setup
 ## Repo map
 
 ```
-app/                 # routes + API
-components/          # marketing, desk, brand, wallet connect
-config/rewards.ts    # package / rank / withdrawal fee
+app/                 # routes + API (incl. /dashboard/reports, /admin/reports, /api/admin/rewards/run)
+components/          # marketing, desk, brand, charts, wallet connect
+config/rewards.ts    # package / rank / 2× 3× caps / wallet routing / timezone
+lib/rewards.ts       # cap + routing enforcement + daily job
+lib/analytics.ts     # Prisma aggregates for desk charts
+lib/clock.ts         # Asia/Dubai calendar helpers
 lib/withdraw.ts      # auto-approve + treasury cover check
 lib/treasury.ts      # payout pool helpers
 lib/chain.ts         # public chain / company wallet config
@@ -212,6 +261,7 @@ lib/onchain.ts       # deposit verify + confirmation count + Transfer watch
 lib/desk-sync.ts     # member deposit/payout watcher used by /api/desk/sync
 lib/fx.ts            # public FX quotes + mock fallback
 lib/access.ts        # blocked / KYC / one-identity checks
+scripts/rewards-daily.ts
 prisma/schema.prisma # SQLite-first, Postgres-ready models
 prisma/seed.ts
 ```

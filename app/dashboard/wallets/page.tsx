@@ -1,6 +1,7 @@
 import { RiskDisclaimer } from "@/components/brand/RiskDisclaimer";
 import { OnchainSync } from "@/components/desk/OnchainSync";
 import { RecentActivity } from "@/components/desk/RecentActivity";
+import { RoutingBanner } from "@/components/desk/RoutingBanner";
 import { VaultStrip } from "@/components/desk/VaultCard";
 import { syncOnchainDesk } from "@/lib/desk-sync";
 import { prisma } from "@/lib/prisma";
@@ -24,6 +25,7 @@ export default async function WalletsPage() {
   return (
     <div className="space-y-6">
       <OnchainSync />
+      <RoutingBanner />
       <VaultStrip
         trading={{
           available: asNumber(trading?.available ?? 0),

@@ -1,8 +1,31 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { packages, withdrawal } from "../config/rewards";
+import { packages, referrals, withdrawal } from "../config/rewards";
+import { eachTradingDay, parseDateKey, zonedDateKey, zonedIsoWeekKey } from "../lib/clock";
 
 const prisma = new PrismaClient();
+
+function noonUtc(daysAgo: number) {
+  const now = new Date();
+  const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysAgo, 12, 0, 0));
+  return date;
+}
+
+async function recomputeWallet(userId: string, type: "TRADING" | "NETWORK") {
+  const entries = await prisma.ledgerEntry.findMany({
+    where: { userId, walletType: type },
+    select: { direction: true, amount: true },
+  });
+  const available = entries.reduce((sum, row) => {
+    const amount = Number(row.amount.toString());
+    return row.direction === "CREDIT" ? sum + amount : sum - amount;
+  }, 0);
+  await prisma.walletBalance.upsert({
+    where: { userId_type: { userId, type } },
+    update: { available: available.toFixed(4), pending: "0" },
+    create: { userId, type, available: available.toFixed(4), pending: "0" },
+  });
+}
 
 async function main() {
   const adminHash = await bcrypt.hash("Admin@12345", 12);
@@ -71,6 +94,7 @@ async function main() {
       emailVerified: now,
       referralCode: "WG-DEMO01",
       walletAddress: "0x1111111111111111111111111111111111111111",
+      createdAt: noonUtc(40),
     },
   });
 
@@ -90,37 +114,63 @@ async function main() {
       emailVerified: now,
       referralCode: "WG-MEMB01",
       referredById: demo.id,
+      createdAt: noonUtc(36),
     },
   });
 
-  async function ensureWallets(
-    userId: string,
-    trading: { available: string; pending: string },
-    network: { available: string; pending: string },
-  ) {
+  const extras = [
+    { email: "nora@whealthgrid.com", name: "Nora Voss", phone: "+15550000004", code: "WG-NORA01", daysAgo: 28, amount: "150" },
+    { email: "kenji@whealthgrid.com", name: "Kenji Sato", phone: "+15550000005", code: "WG-KENJ01", daysAgo: 22, amount: "100" },
+    { email: "priya@whealthgrid.com", name: "Priya Raman", phone: "+15550000006", code: "WG-PRIY01", daysAgo: 18, amount: null },
+    { email: "marc@whealthgrid.com", name: "Marc Duval", phone: "+15550000007", code: "WG-MARC01", daysAgo: 12, amount: null },
+    { email: "blocked@whealthgrid.com", name: "Blocked Desk", phone: "+15550000008", code: "WG-BLCK01", daysAgo: 9, amount: null, blocked: true },
+    { email: "sofia@whealthgrid.com", name: "Sofia Mendes", phone: "+15550000009", code: "WG-SOFI01", daysAgo: 5, amount: null },
+  ] as const;
+
+  const extraUsers: { id: string; email: string; name: string; amount: string | null }[] = [];
+  for (const row of extras) {
+    const user = await prisma.user.upsert({
+      where: { email: row.email },
+      update: {
+        passwordHash: demoHash,
+        phone: row.phone,
+        emailVerified: now,
+        referredById: demo.id,
+        blocked: "blocked" in row ? Boolean(row.blocked) : false,
+      },
+      create: {
+        email: row.email,
+        name: row.name,
+        phone: row.phone,
+        passwordHash: demoHash,
+        role: "USER",
+        emailVerified: now,
+        referralCode: row.code,
+        referredById: demo.id,
+        blocked: "blocked" in row ? Boolean(row.blocked) : false,
+        createdAt: noonUtc(row.daysAgo),
+      },
+    });
+    extraUsers.push({ id: user.id, email: row.email, name: row.name, amount: row.amount });
+  }
+
+  async function ensureWallets(userId: string) {
     await prisma.walletBalance.upsert({
       where: { userId_type: { userId, type: "TRADING" } },
-      update: trading,
-      create: { userId, type: "TRADING", ...trading },
+      update: {},
+      create: { userId, type: "TRADING", available: 0, pending: 0 },
     });
     await prisma.walletBalance.upsert({
       where: { userId_type: { userId, type: "NETWORK" } },
-      update: network,
-      create: { userId, type: "NETWORK", ...network },
+      update: {},
+      create: { userId, type: "NETWORK", available: 0, pending: 0 },
     });
   }
 
-  await ensureWallets(admin.id, { available: "0", pending: "0" }, { available: "0", pending: "0" });
-  await ensureWallets(
-    demo.id,
-    { available: "420.00", pending: "0" },
-    { available: "63.50", pending: "0" },
-  );
-  await ensureWallets(
-    member.id,
-    { available: "50.00", pending: "0" },
-    { available: "0", pending: "0" },
-  );
+  await ensureWallets(admin.id);
+  await ensureWallets(demo.id);
+  await ensureWallets(member.id);
+  for (const row of extraUsers) await ensureWallets(row.id);
 
   await prisma.rankProgress.upsert({
     where: { userId: admin.id },
@@ -132,252 +182,552 @@ async function main() {
     update: {
       currentRank: "elite-2",
       personalVolume: "500",
-      teamVolume: "50",
+      teamVolume: "500",
     },
     create: {
       userId: demo.id,
       currentRank: "elite-2",
       personalVolume: "500",
-      teamVolume: "50",
+      teamVolume: "500",
     },
   });
   await prisma.rankProgress.upsert({
     where: { userId: member.id },
-    update: {},
-    create: { userId: member.id, currentRank: "NONE", personalVolume: "50" },
+    update: { personalVolume: "200" },
+    create: { userId: member.id, currentRank: "NONE", personalVolume: "200" },
   });
 
-  const existingActivation = await prisma.packageActivation.findFirst({
-    where: { userId: demo.id, packageId: pro.id, status: "ACTIVE" },
-  });
-  if (!existingActivation) {
-    await prisma.packageActivation.create({
-      data: {
-        userId: demo.id,
-        packageId: pro.id,
-        amount: "500",
-        status: "ACTIVE",
-      },
+  async function ensureActivation(userId: string, amount: string, startedAt: Date) {
+    const existing = await prisma.packageActivation.findFirst({
+      where: { userId, packageId: pro.id, status: { in: ["ACTIVE", "COMPLETED"] } },
+    });
+    if (existing) return existing;
+    return prisma.packageActivation.create({
+      data: { userId, packageId: pro.id, amount, status: "ACTIVE", startedAt },
     });
   }
 
-  await prisma.referral.upsert({
-    where: { referrerId_refereeId: { referrerId: demo.id, refereeId: member.id } },
-    update: {},
-    create: { referrerId: demo.id, refereeId: member.id, level: 1 },
+  await ensureActivation(demo.id, "500", noonUtc(38));
+  await ensureActivation(member.id, "200", noonUtc(34));
+  for (const row of extraUsers) {
+    if (row.amount) {
+      await ensureActivation(row.id, row.amount, noonUtc(20));
+      await prisma.rankProgress.upsert({
+        where: { userId: row.id },
+        update: { personalVolume: row.amount },
+        create: { userId: row.id, currentRank: "NONE", personalVolume: row.amount },
+      });
+    } else {
+      await prisma.rankProgress.upsert({
+        where: { userId: row.id },
+        update: {},
+        create: { userId: row.id, currentRank: "NONE" },
+      });
+    }
+  }
+
+  const downlines = [member, ...extraUsers.map((row) => ({ id: row.id }))];
+  for (const child of downlines) {
+    await prisma.referral.upsert({
+      where: { referrerId_refereeId: { referrerId: demo.id, refereeId: child.id } },
+      update: {},
+      create: { referrerId: demo.id, refereeId: child.id, level: 1 },
+    });
+  }
+
+  const seriesExists = await prisma.rewardPayout.count({
+    where: { periodKey: { startsWith: "DAILY:" } },
   });
 
-  const ledgerCount = await prisma.ledgerEntry.count({ where: { userId: demo.id } });
-  if (ledgerCount === 0) {
-    await prisma.ledgerEntry.createMany({
-      data: [
+  if (seriesExists === 0) {
+    const opening: {
+      userId: string;
+      walletType: "TRADING" | "NETWORK";
+      direction: "CREDIT" | "DEBIT";
+      category: string;
+      amount: string;
+      balanceAfter: string;
+      description: string;
+      createdAt: Date;
+    }[] = [
+      {
+        userId: demo.id,
+        walletType: "TRADING" as const,
+        direction: "CREDIT" as const,
+        category: "DEPOSIT",
+        amount: "1000",
+        balanceAfter: "1000",
+        description: "Seeded trading deposit (DEX placeholder approved)",
+        createdAt: noonUtc(39),
+      },
+      {
+        userId: demo.id,
+        walletType: "TRADING" as const,
+        direction: "DEBIT" as const,
+        category: "PACKAGE",
+        amount: "500",
+        balanceAfter: "500",
+        description: "Activated Pro package $500",
+        createdAt: noonUtc(38),
+      },
+      {
+        userId: member.id,
+        walletType: "TRADING" as const,
+        direction: "CREDIT" as const,
+        category: "DEPOSIT",
+        amount: "250",
+        balanceAfter: "250",
+        description: "Seeded trading deposit",
+        createdAt: noonUtc(35),
+      },
+      {
+        userId: member.id,
+        walletType: "TRADING" as const,
+        direction: "DEBIT" as const,
+        category: "PACKAGE",
+        amount: "200",
+        balanceAfter: "50",
+        description: "Activated Pro package $200",
+        createdAt: noonUtc(34),
+      },
+    ];
+
+    const nora = extraUsers.find((row) => row.email === "nora@whealthgrid.com");
+    const kenji = extraUsers.find((row) => row.email === "kenji@whealthgrid.com");
+    if (nora) {
+      opening.push(
         {
-          userId: demo.id,
+          userId: nora.id,
           walletType: "TRADING",
           direction: "CREDIT",
           category: "DEPOSIT",
-          amount: "1000",
-          balanceAfter: "1000",
-          description: "Seeded trading deposit (DEX placeholder approved)",
+          amount: "200",
+          balanceAfter: "200",
+          description: "Seeded trading deposit",
+          createdAt: noonUtc(21),
         },
         {
-          userId: demo.id,
+          userId: nora.id,
           walletType: "TRADING",
           direction: "DEBIT",
           category: "PACKAGE",
-          amount: "500",
-          balanceAfter: "500",
-          description: "Activated Pro package $500",
+          amount: "150",
+          balanceAfter: "50",
+          description: "Activated Pro package $150",
+          createdAt: noonUtc(20),
         },
+      );
+    }
+    if (kenji) {
+      opening.push(
         {
-          userId: demo.id,
-          walletType: "NETWORK",
+          userId: kenji.id,
+          walletType: "TRADING",
           direction: "CREDIT",
-          category: "REFERRAL",
-          amount: "3.50",
-          balanceAfter: "3.50",
-          description: "Direct referral 7% on Leo Okonkwo $50 activation",
+          category: "DEPOSIT",
+          amount: "160",
+          balanceAfter: "160",
+          description: "Seeded trading deposit",
+          createdAt: noonUtc(21),
         },
         {
-          userId: demo.id,
+          userId: kenji.id,
+          walletType: "TRADING",
+          direction: "DEBIT",
+          category: "PACKAGE",
+          amount: "100",
+          balanceAfter: "60",
+          description: "Activated Pro package $100",
+          createdAt: noonUtc(20),
+        },
+      );
+    }
+
+    const ledgerCount = await prisma.ledgerEntry.count({
+      where: { userId: { in: [demo.id, member.id] }, category: "DEPOSIT" },
+    });
+    if (ledgerCount === 0) {
+      await prisma.ledgerEntry.createMany({ data: opening });
+    }
+
+    const desks = [
+      { userId: demo.id, principal: 500, start: noonUtc(37) },
+      { userId: member.id, principal: 200, start: noonUtc(33) },
+      ...(nora ? [{ userId: nora.id, principal: 150, start: noonUtc(19) }] : []),
+      ...(kenji ? [{ userId: kenji.id, principal: 100, start: noonUtc(19) }] : []),
+    ];
+
+    const tradingDays = eachTradingDay(noonUtc(37), noonUtc(1));
+    const payouts: {
+      userId: string;
+      type: string;
+      amount: string;
+      status: string;
+      note: string;
+      periodKey: string;
+      createdAt: Date;
+    }[] = [];
+    const ledger: {
+      userId: string;
+      walletType: "TRADING" | "NETWORK";
+      direction: "CREDIT";
+      category: string;
+      amount: string;
+      balanceAfter: string;
+      description: string;
+      createdAt: Date;
+    }[] = [];
+
+    const running: Record<string, { trading: number; network: number }> = {};
+    const bump = (userId: string, wallet: "TRADING" | "NETWORK", amount: number) => {
+      running[userId] ??= { trading: 0, network: 0 };
+      if (wallet === "TRADING") running[userId].trading += amount;
+      else running[userId].network += amount;
+      return wallet === "TRADING" ? running[userId].trading : running[userId].network;
+    };
+
+    const demoDirects = [
+      { userId: member.id, name: "Leo Okonkwo", amount: 200, when: noonUtc(34) },
+      ...(nora ? [{ userId: nora.id, name: "Nora Voss", amount: 150, when: noonUtc(20) }] : []),
+      ...(kenji ? [{ userId: kenji.id, name: "Kenji Sato", amount: 100, when: noonUtc(20) }] : []),
+    ];
+    for (const row of demoDirects) {
+      const bonus = Number(((row.amount * referrals.directPct) / 100).toFixed(4));
+      const periodKey = `DIRECT:seed:${row.userId}`;
+      payouts.push({
+        userId: demo.id,
+        type: "DIRECT",
+        amount: bonus.toFixed(4),
+        status: "PAID",
+        note: `${referrals.directPct}% direct on ${row.name} activation → Network wallet`,
+        periodKey,
+        createdAt: row.when,
+      });
+      ledger.push({
+        userId: demo.id,
+        walletType: "NETWORK",
+        direction: "CREDIT",
+        category: "REFERRAL",
+        amount: bonus.toFixed(4),
+        balanceAfter: bump(demo.id, "NETWORK", bonus).toFixed(4),
+        description: `${referrals.directPct}% direct on ${row.name} activation → Network wallet`,
+        createdAt: row.when,
+      });
+    }
+
+    for (const day of tradingDays) {
+      const dateKey = zonedDateKey(day);
+      for (const desk of desks) {
+        if (day.getTime() < desk.start.getTime()) continue;
+        const daily = Number(((desk.principal * proCfg.dailyRatePct) / 100).toFixed(4));
+        payouts.push({
+          userId: desk.userId,
+          type: "DAILY",
+          amount: daily.toFixed(4),
+          status: "PAID",
+          note: `Daily trading ROI ${proCfg.dailyRatePct}% of ${desk.principal.toFixed(2)} → Trading wallet`,
+          periodKey: `DAILY:${dateKey}`,
+          createdAt: day,
+        });
+        ledger.push({
+          userId: desk.userId,
           walletType: "TRADING",
           direction: "CREDIT",
           category: "REWARD",
-          amount: "2.50",
-          balanceAfter: "502.50",
-          description: "Illustrative daily trading credit (seed)",
-        },
-        {
+          amount: daily.toFixed(4),
+          balanceAfter: bump(desk.userId, "TRADING", daily).toFixed(4),
+          description: `Daily trading ROI ${proCfg.dailyRatePct}% of ${desk.principal.toFixed(2)} → Trading wallet`,
+          createdAt: day,
+        });
+
+        if (desk.userId !== demo.id) {
+          const team = Number(((daily * referrals.teamTradingPct[0]) / 100).toFixed(4));
+          payouts.push({
+            userId: demo.id,
+            type: "TEAM",
+            amount: team.toFixed(4),
+            status: "PAID",
+            note: `L1 team trading ${referrals.teamTradingPct[0]}% of daily credit`,
+            periodKey: `TEAM:${dateKey}:${desk.userId}:L1`,
+            createdAt: day,
+          });
+          ledger.push({
+            userId: demo.id,
+            walletType: "NETWORK",
+            direction: "CREDIT",
+            category: "REFERRAL",
+            amount: team.toFixed(4),
+            balanceAfter: bump(demo.id, "NETWORK", team).toFixed(4),
+            description: `L1 team trading ${referrals.teamTradingPct[0]}% of daily credit`,
+            createdAt: day,
+          });
+        }
+      }
+    }
+
+    const weeks = new Set<string>();
+    for (const day of tradingDays) {
+      const week = zonedIsoWeekKey(day);
+      if (weeks.has(week)) continue;
+      weeks.add(week);
+      for (const desk of desks) {
+        const amount = Number(((desk.principal * 0.2) / 100).toFixed(4));
+        payouts.push({
+          userId: desk.userId,
+          type: "LOYALTY",
+          amount: amount.toFixed(4),
+          status: "PAID",
+          note: "Weekly loyalty 0.2% of active principal (Network wallet)",
+          periodKey: `LOYALTY:${week}`,
+          createdAt: day,
+        });
+        ledger.push({
+          userId: desk.userId,
+          walletType: "NETWORK",
+          direction: "CREDIT",
+          category: "REWARD",
+          amount: amount.toFixed(4),
+          balanceAfter: bump(desk.userId, "NETWORK", amount).toFixed(4),
+          description: "Weekly loyalty 0.2% of active principal (Network wallet)",
+          createdAt: day,
+        });
+      }
+    }
+
+    payouts.push({
+      userId: demo.id,
+      type: "RANK",
+      amount: "15.0000",
+      status: "PAID",
+      note: "Elite 2 rank recognition → Network wallet",
+      periodKey: "RANK:elite-2",
+      createdAt: noonUtc(10),
+    });
+    ledger.push({
+      userId: demo.id,
+      walletType: "NETWORK",
+      direction: "CREDIT",
+      category: "REWARD",
+      amount: "15.0000",
+      balanceAfter: bump(demo.id, "NETWORK", 15).toFixed(4),
+      description: "Elite 2 rank recognition → Network wallet",
+      createdAt: noonUtc(10),
+    });
+
+    await prisma.rewardPayout.createMany({ data: payouts });
+    await prisma.ledgerEntry.createMany({ data: ledger });
+
+    const seedGross = 80;
+    const seedFee = Number(((seedGross * withdrawal.feePct) / 100).toFixed(2));
+    const seedNet = Number((seedGross - seedFee).toFixed(2));
+
+    if ((await prisma.ledgerEntry.count({ where: { userId: demo.id, category: "WITHDRAWAL" } })) === 0) {
+      await prisma.ledgerEntry.create({
+        data: {
           userId: demo.id,
           walletType: "TRADING",
           direction: "DEBIT",
           category: "WITHDRAWAL",
-          amount: "80",
-          balanceAfter: "420.00",
+          amount: String(seedGross),
+          balanceAfter: "0",
           description: "Withdrawal auto-approved — treasury payout (seed)",
+          createdAt: noonUtc(6),
         },
-      ],
-    });
-  }
+      });
+    }
 
-  if ((await prisma.rewardPayout.count({ where: { userId: demo.id } })) === 0) {
-    await prisma.rewardPayout.createMany({
-      data: [
-        {
+    const existingWithdrawal = await prisma.withdrawalRequest.findFirst({
+      where: { userId: demo.id },
+      orderBy: { createdAt: "asc" },
+    });
+    let seedWithdrawalId = existingWithdrawal?.id;
+    if (!existingWithdrawal) {
+      const created = await prisma.withdrawalRequest.create({
+        data: {
           userId: demo.id,
-          type: "DAILY",
-          amount: "2.50",
-          status: "PAID",
-          note: "Illustrative daily credit against $500 Pro",
+          amount: String(seedGross),
+          feeAmount: String(seedFee),
+          netAmount: String(seedNet),
+          walletType: "TRADING",
+          toAddress: "0x1111111111111111111111111111111111111111",
+          status: "APPROVED",
+          reviewedAt: noonUtc(6),
+          createdAt: noonUtc(6),
+          note: "Seeded auto-approved payout from company treasury",
         },
-        {
-          userId: demo.id,
-          type: "DIRECT",
-          amount: "3.50",
-          status: "PAID",
-          note: "7% direct on referred Pro activation",
+      });
+      seedWithdrawalId = created.id;
+    }
+
+    const moreWithdrawals = [
+      { userId: member.id, amount: 40, daysAgo: 14, wallet: "TRADING" },
+      { userId: demo.id, amount: 25, daysAgo: 3, wallet: "NETWORK" },
+    ];
+    for (const row of moreWithdrawals) {
+      const exists = await prisma.withdrawalRequest.findFirst({
+        where: { userId: row.userId, amount: String(row.amount), createdAt: noonUtc(row.daysAgo) },
+      });
+      if (exists) continue;
+      const fee = Number(((row.amount * withdrawal.feePct) / 100).toFixed(2));
+      await prisma.withdrawalRequest.create({
+        data: {
+          userId: row.userId,
+          amount: String(row.amount),
+          feeAmount: String(fee),
+          netAmount: String(row.amount - fee),
+          walletType: row.wallet,
+          status: "CONFIRMED",
+          createdAt: noonUtc(row.daysAgo),
+          reviewedAt: noonUtc(row.daysAgo),
+          note: "Seeded volume sample",
         },
-        {
-          userId: demo.id,
-          type: "LOYALTY",
-          amount: "5.00",
-          status: "PENDING",
-          note: "Weekly loyalty window (not yet released)",
-        },
-      ],
-    });
-  }
-
-  if ((await prisma.depositIntent.count()) === 0) {
-    await prisma.depositIntent.create({
-      data: {
-        userId: demo.id,
-        amount: "250",
-        walletType: "TRADING",
-        status: "PENDING",
-        note: "Awaiting USDT send to company wallet",
-        fromAddress: "0x1111111111111111111111111111111111111111",
-      },
-    });
-  }
-
-  const seedGross = 80;
-  const seedFee = Number(((seedGross * withdrawal.feePct) / 100).toFixed(2));
-  const seedNet = Number((seedGross - seedFee).toFixed(2));
-
-  const existingWithdrawal = await prisma.withdrawalRequest.findFirst({
-    where: { userId: demo.id },
-    orderBy: { createdAt: "asc" },
-  });
-  let seedWithdrawalId = existingWithdrawal?.id;
-  if (!existingWithdrawal) {
-    const created = await prisma.withdrawalRequest.create({
-      data: {
-        userId: demo.id,
-        amount: String(seedGross),
-        feeAmount: String(seedFee),
-        netAmount: String(seedNet),
-        walletType: "TRADING",
-        toAddress: "0x1111111111111111111111111111111111111111",
-        status: "APPROVED",
-        reviewedAt: new Date(),
-        note: "Seeded auto-approved payout from company treasury",
-      },
-    });
-    seedWithdrawalId = created.id;
-  } else if (existingWithdrawal.status === "PENDING") {
-    await prisma.withdrawalRequest.update({
-      where: { id: existingWithdrawal.id },
-      data: {
-        feeAmount: String(seedFee),
-        netAmount: String(seedNet),
-        status: "APPROVED",
-        reviewedAt: new Date(),
-        note: "Migrated seed withdrawal — auto-approved against treasury",
-      },
-    });
-  }
-
-  const treasury = await prisma.treasury.upsert({
-    where: { id: "company" },
-    update: {},
-    create: { id: "company", balance: "0" },
-  });
-
-  if ((await prisma.treasuryMovement.count()) === 0) {
-    const opening = 10000;
-    const afterTopup = opening;
-    const afterPayout = Number((opening - seedNet).toFixed(2));
-    await prisma.treasury.update({
-      where: { id: "company" },
-      data: { balance: String(afterPayout) },
-    });
-    await prisma.treasuryMovement.createMany({
-      data: [
-        {
-          treasuryId: "company",
-          direction: "CREDIT",
-          category: "TOPUP",
-          amount: String(opening),
-          balanceAfter: String(afterTopup),
-          description: "Seeded company payout pool",
-          actorId: admin.id,
-        },
-        {
-          treasuryId: "company",
+      });
+      await prisma.ledgerEntry.create({
+        data: {
+          userId: row.userId,
+          walletType: row.wallet,
           direction: "DEBIT",
-          category: "PAYOUT",
-          amount: String(seedNet),
-          balanceAfter: String(afterPayout),
-          description: "Seeded demo withdrawal payout",
-          refId: seedWithdrawalId,
-          actorId: admin.id,
+          category: "WITHDRAWAL",
+          amount: String(row.amount),
+          balanceAfter: "0",
+          description: "Seeded withdrawal for analytics volume",
+          createdAt: noonUtc(row.daysAgo),
         },
-      ],
-    });
-  } else if (Number(treasury.balance.toString()) === 0) {
-    await prisma.treasury.update({
-      where: { id: "company" },
-      data: { balance: "10000" },
-    });
-    await prisma.treasuryMovement.create({
-      data: {
-        treasuryId: "company",
-        direction: "CREDIT",
-        category: "TOPUP",
-        amount: "10000",
-        balanceAfter: "10000",
-        description: "Seeded company payout pool",
-        actorId: admin.id,
-      },
-    });
-  }
+      });
+    }
 
-  if ((await prisma.supportTicket.count()) === 0) {
-    await prisma.supportTicket.create({
-      data: {
-        userId: demo.id,
-        subject: "Welcome desk check",
-        status: "OPEN",
-        messages: {
-          create: {
-            authorId: demo.id,
-            body: "Seeded ticket — confirm deposits auto-credit after chain confirmations.",
+    const depositDays = [32, 27, 21, 16, 11, 7, 2];
+    for (const daysAgo of depositDays) {
+      const exists = await prisma.depositIntent.findFirst({
+        where: { userId: demo.id, createdAt: noonUtc(daysAgo), status: "APPROVED" },
+      });
+      if (exists) continue;
+      await prisma.depositIntent.create({
+        data: {
+          userId: demo.id,
+          amount: String(80 + daysAgo),
+          walletType: "TRADING",
+          status: "APPROVED",
+          createdAt: noonUtc(daysAgo),
+          reviewedAt: noonUtc(daysAgo),
+          note: "Seeded approved deposit for analytics",
+        },
+      });
+    }
+
+    if ((await prisma.depositIntent.count({ where: { status: "PENDING" } })) === 0) {
+      await prisma.depositIntent.create({
+        data: {
+          userId: demo.id,
+          amount: "250",
+          walletType: "TRADING",
+          status: "PENDING",
+          note: "Awaiting USDT send to company wallet",
+          fromAddress: "0x1111111111111111111111111111111111111111",
+        },
+      });
+    }
+
+    const treasury = await prisma.treasury.upsert({
+      where: { id: "company" },
+      update: {},
+      create: { id: "company", balance: "0" },
+    });
+
+    if ((await prisma.treasuryMovement.count()) === 0) {
+      const openingPool = 10000;
+      const afterPayout = Number((openingPool - seedNet).toFixed(2));
+      await prisma.treasury.update({
+        where: { id: "company" },
+        data: { balance: String(afterPayout) },
+      });
+      await prisma.treasuryMovement.createMany({
+        data: [
+          {
+            treasuryId: "company",
+            direction: "CREDIT",
+            category: "TOPUP",
+            amount: String(openingPool),
+            balanceAfter: String(openingPool),
+            description: "Seeded company payout pool",
+            actorId: admin.id,
+            createdAt: noonUtc(40),
+          },
+          {
+            treasuryId: "company",
+            direction: "DEBIT",
+            category: "PAYOUT",
+            amount: String(seedNet),
+            balanceAfter: String(afterPayout),
+            description: "Seeded demo withdrawal payout",
+            refId: seedWithdrawalId,
+            actorId: admin.id,
+            createdAt: noonUtc(6),
+          },
+          {
+            treasuryId: "company",
+            direction: "CREDIT",
+            category: "TOPUP",
+            amount: "2500",
+            balanceAfter: String(afterPayout + 2500),
+            description: "Mid-cycle treasury top-up",
+            actorId: admin.id,
+            createdAt: noonUtc(18),
+          },
+          {
+            treasuryId: "company",
+            direction: "DEBIT",
+            category: "PAYOUT",
+            amount: "38",
+            balanceAfter: String(afterPayout + 2500 - 38),
+            description: "Seeded member withdrawal payout",
+            actorId: admin.id,
+            createdAt: noonUtc(14),
+          },
+        ],
+      });
+      await prisma.treasury.update({
+        where: { id: "company" },
+        data: { balance: String(afterPayout + 2500 - 38) },
+      });
+    } else if (Number(treasury.balance.toString()) === 0) {
+      await prisma.treasury.update({
+        where: { id: "company" },
+        data: { balance: "10000" },
+      });
+    }
+
+    if ((await prisma.supportTicket.count()) === 0) {
+      await prisma.supportTicket.create({
+        data: {
+          userId: demo.id,
+          subject: "Welcome desk check",
+          status: "OPEN",
+          messages: {
+            create: {
+              authorId: demo.id,
+              body: "Seeded ticket — confirm deposits auto-credit after chain confirmations.",
+            },
           },
         },
-      },
-    });
+      });
+    }
+
+    if ((await prisma.announcement.count()) === 0) {
+      await prisma.announcement.create({
+        data: {
+          title: "Trading credits are Mon–Fri only",
+          body: "Daily trading ROI now books to the Trading wallet Monday–Friday in Asia/Dubai time, capped at 2× package principal. Network rewards (direct, team, loyalty, ranks) book to the Network wallet 24/7, capped at 3×.",
+          published: true,
+          authorId: admin.id,
+        },
+      });
+    }
   }
 
-  if ((await prisma.announcement.count()) === 0) {
-    await prisma.announcement.create({
-      data: {
-        title: "Treasury payouts are live",
-        body: "Welcome to Whealth Grid Fx AI. Connect a wallet on deposit, withdraw, or profile. Withdrawals deduct your available balance immediately and auto-approve against the company treasury, then send USDT from the company hot wallet when chain env is configured.",
-        published: true,
-        authorId: admin.id,
-      },
-    });
+  for (const userId of [demo.id, member.id, ...extraUsers.map((row) => row.id)]) {
+    await recomputeWallet(userId, "TRADING");
+    await recomputeWallet(userId, "NETWORK");
   }
 
   await prisma.auditLog.create({
@@ -385,7 +735,10 @@ async function main() {
       actorId: admin.id,
       action: "SEED",
       entity: "SYSTEM",
-      meta: JSON.stringify({ message: "Treasury auto-withdraw seed applied" }),
+      meta: JSON.stringify({
+        message: "Analytics + 2×/3× cap seed applied",
+        date: parseDateKey(zonedDateKey(now)).toISOString(),
+      }),
     },
   });
 

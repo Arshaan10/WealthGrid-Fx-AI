@@ -26,7 +26,7 @@ const steps = [
   {
     n: "04",
     title: "Read the grid",
-    body: "Overview shows Trading + Network wallets, active package, and rank. Daily and network credits are structural — not guaranteed.",
+    body: "Overview shows Trading + Network wallets, 2× / 3× cap bars, and analytics. Daily trading ROI credits Trading Mon–Fri (Asia/Dubai). Network rewards credit Network 24/7. Figures are structural — not guaranteed.",
   },
   {
     n: "05",

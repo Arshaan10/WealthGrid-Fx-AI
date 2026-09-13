@@ -31,8 +31,8 @@ export function RecentActivity({
             Confirmed deposits, claims, and withdrawals once the blockchain confirms.
           </p>
         </div>
-        <GoldLink href="/dashboard/wallets" variant="ghost" className="px-3 py-1.5 text-xs">
-          Full ledger
+        <GoldLink href="/dashboard/reports" variant="ghost" className="px-3 py-1.5 text-xs">
+          Full report
         </GoldLink>
       </div>
       {rows.length === 0 ? (

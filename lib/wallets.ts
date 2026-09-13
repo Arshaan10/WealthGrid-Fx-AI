@@ -36,17 +36,20 @@ export async function creditWallet(input: {
   category: string;
   description: string;
   refId?: string;
+  createdAt?: Date;
+  db?: DbClient;
 }) {
+  const db = input.db ?? prisma;
   const amount = new Prisma.Decimal(input.amount);
-  const wallet = await getOrCreateWallet(input.userId, input.type);
+  const wallet = await getOrCreateWallet(input.userId, input.type, db);
   const next = new Prisma.Decimal(wallet.available).plus(amount);
 
-  await prisma.walletBalance.update({
+  await db.walletBalance.update({
     where: { id: wallet.id },
     data: { available: next },
   });
 
-  await prisma.ledgerEntry.create({
+  await db.ledgerEntry.create({
     data: {
       userId: input.userId,
       walletType: input.type,
@@ -56,6 +59,7 @@ export async function creditWallet(input: {
       balanceAfter: next,
       description: input.description,
       refId: input.refId,
+      ...(input.createdAt ? { createdAt: input.createdAt } : {}),
     },
   });
 
