@@ -24,8 +24,8 @@ export default async function AdminHomePage() {
   ]);
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div className="min-w-0 space-y-6">
+      <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Users" value={String(kpis.users)} hint={kpis.blocked ? `${kpis.blocked} blocked` : "All active"} icon={<Users size={18} />} />
         <StatCard label="Active packages" value={String(kpis.activations)} hint="Pro desks currently running" />
         <StatCard
@@ -41,10 +41,10 @@ export default async function AdminHomePage() {
         <StatCard label="Rewards paid" value={formatUsd(kpis.rewardsPaid)} hint="Trading + network lifetime" />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1.35fr_0.75fr]">
-        <GlassCard className="p-5">
-          <div className="mb-3 flex items-start justify-between gap-3">
-            <div>
+      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
+        <GlassCard className="overflow-hidden p-5">
+          <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
               <p className="text-[10px] uppercase tracking-[0.2em] text-gold/80">21-day flow</p>
               <h3 className="font-display text-2xl">Deposit / withdraw volume</h3>
             </div>
@@ -63,7 +63,7 @@ export default async function AdminHomePage() {
             }))}
           />
         </GlassCard>
-        <GlassCard className="p-5">
+        <GlassCard className="overflow-hidden p-5">
           <p className="text-[10px] uppercase tracking-[0.2em] text-gold/80">Payout mix</p>
           <h3 className="mb-4 font-display text-2xl">Rewards by book</h3>
           <DonutChart
@@ -76,7 +76,7 @@ export default async function AdminHomePage() {
         </GlassCard>
       </div>
 
-      <GlassCard className="p-5">
+      <GlassCard className="overflow-hidden p-5">
         <p className="text-[10px] uppercase tracking-[0.2em] text-gold/80">Desk growth</p>
         <h3 className="mb-3 font-display text-2xl">New registrations</h3>
         <GoldBarChart points={registrations} color="#f3d77a" />

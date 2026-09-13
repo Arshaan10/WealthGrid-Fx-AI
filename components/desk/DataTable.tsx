@@ -10,7 +10,7 @@ export function DataTable({
   empty?: string;
 }) {
   return (
-    <div className="overflow-x-auto">
+    <div className="min-w-0 overflow-x-auto">
       <table className="min-w-full text-left text-sm">
         <thead>
           <tr className="border-b border-gold-line/40 text-[11px] uppercase tracking-[0.16em] text-muted">

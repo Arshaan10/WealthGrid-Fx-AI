@@ -47,7 +47,7 @@ export default async function DashboardHomePage() {
   const networkAvail = asNumber(network?.available ?? 0);
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <OnchainSync />
       <RoutingBanner />
       <VaultStrip
@@ -94,10 +94,10 @@ export default async function DashboardHomePage() {
         networkEarned={caps.networkEarned}
         networkCap={caps.networkCap}
       />
-      <div className="grid gap-4 xl:grid-cols-[1.4fr_0.8fr]">
-        <GlassCard className="p-5">
-          <div className="mb-3 flex items-start justify-between gap-3">
-            <div>
+      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
+        <GlassCard className="overflow-hidden p-5">
+          <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
               <p className="text-[10px] uppercase tracking-[0.2em] text-gold/80">28-day book</p>
               <h3 className="font-display text-2xl">Weekly earnings</h3>
             </div>
@@ -110,7 +110,7 @@ export default async function DashboardHomePage() {
           </div>
           <DualAreaChart points={rollupWeekly(earnings)} />
         </GlassCard>
-        <GlassCard className="p-5">
+        <GlassCard className="overflow-hidden p-5">
           <p className="text-[10px] uppercase tracking-[0.2em] text-gold/80">Vault mix</p>
           <h3 className="mb-4 font-display text-2xl">Wallet breakdown</h3>
           <DonutChart
@@ -122,7 +122,7 @@ export default async function DashboardHomePage() {
           />
         </GlassCard>
       </div>
-      <GlassCard className="p-5">
+      <GlassCard className="overflow-hidden p-5">
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <p className="text-[10px] uppercase tracking-[0.2em] text-gold/80">Mon–Fri credits</p>

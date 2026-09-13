@@ -17,22 +17,26 @@ function ProgressTrack({
 }) {
   const pct = Math.min(100, Math.max(0, ratio * 100));
   return (
-    <div>
-      <div className="mb-2 flex items-end justify-between gap-3">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.16em] text-muted">{label}</p>
-          <p className={`font-display text-2xl ${tone === "gold" ? "text-gold-bright" : "text-cream"}`}>
-            {formatUsd(earned)}
-            <span className="ml-2 text-sm text-muted">/ {formatUsd(cap)}</span>
-          </p>
-        </div>
-        <p className="text-sm text-gold">{pct.toFixed(1)}%</p>
+    <div className="min-w-0">
+      <div className="mb-2 flex items-start justify-between gap-3">
+        <p className="min-w-0 text-[10px] uppercase leading-4 tracking-[0.16em] text-muted">{label}</p>
+        <p className="shrink-0 tabular-nums text-sm text-gold">{pct.toFixed(1)}%</p>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-black/50">
         <div
           className={tone === "gold" ? "h-full rounded-full bg-gold-sheen" : "h-full rounded-full bg-cream/80"}
           style={{ width: `${pct}%` }}
         />
+      </div>
+      <div className="mt-2 flex items-baseline justify-between gap-3">
+        <p
+          className={`min-w-0 truncate font-display text-xl tabular-nums ${
+            tone === "gold" ? "text-gold-bright" : "text-cream"
+          }`}
+        >
+          {formatUsd(earned)}
+        </p>
+        <p className="shrink-0 text-sm tabular-nums text-muted">/ {formatUsd(cap)}</p>
       </div>
     </div>
   );
@@ -86,17 +90,17 @@ export function DualCapProgress({
   networkCap: number;
 }) {
   return (
-    <GlassCard className="p-5">
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div>
+    <GlassCard className="overflow-hidden p-5">
+      <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
           <p className="text-[10px] uppercase tracking-[0.2em] text-gold/80">Lifetime ceilings</p>
           <h3 className="font-display text-2xl">Cap progress</h3>
         </div>
-        <p className="text-xs text-muted">
+        <p className="shrink-0 text-xs text-muted">
           Principal {formatUsd(principal)} · trading {caps.tradingMultiple}× · network {caps.networkMultiple}×
         </p>
       </div>
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2">
         <ProgressTrack
           tone="gold"
           label={`Daily trading ROI toward ${caps.tradingMultiple}×`}

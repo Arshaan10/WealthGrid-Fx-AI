@@ -11,7 +11,7 @@ export function GlassCard({
   pad?: boolean;
 }) {
   return (
-    <div className={cn("glass-card rounded-2xl", pad && "p-6 sm:p-8", className)}>
+    <div className={cn("glass-card min-w-0 rounded-2xl", pad && "p-6 sm:p-8", className)}>
       {children}
     </div>
   );

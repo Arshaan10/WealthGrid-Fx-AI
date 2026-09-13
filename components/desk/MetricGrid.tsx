@@ -13,13 +13,13 @@ export function MetricGrid({
   return (
     <GlassCard className="p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h3 className="font-display text-2xl">{title}</h3>
+        <h3 className="min-w-0 font-display text-2xl">{title}</h3>
         {action}
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {items.map((item) => (
-          <div key={item.label} className="rounded-xl border border-gold-line/30 bg-black/25 px-4 py-3">
-            <p className="font-display text-2xl text-gold-bright">{item.value}</p>
+          <div key={item.label} className="min-w-0 rounded-xl border border-gold-line/30 bg-black/25 px-4 py-3">
+            <p className="break-words font-display text-2xl text-gold-bright">{item.value}</p>
             <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-muted">{item.label}</p>
           </div>
         ))}

@@ -65,7 +65,7 @@ export function AppSidebar({
   const icons = mode === "admin" ? adminIcons : userIcons;
 
   return (
-    <aside className="flex h-full flex-col border-r border-gold-line/50 bg-black/50">
+    <aside className="flex h-full w-full flex-col border-r border-gold-line/50 bg-black/50">
       <div className="border-b border-gold-line/40 px-4 py-4">
         <Logo href={home} compact />
         <p className="mt-2 text-[10px] uppercase tracking-[0.24em] text-gold/70">

@@ -73,7 +73,7 @@ export function ForexTicker({
   return (
     <div
       className={cn(
-        "relative overflow-hidden border-y border-gold-line/50 bg-black/80",
+        "relative min-w-0 max-w-full overflow-hidden border-y border-gold-line/50 bg-black/80",
         compact ? "py-1.5" : "py-2",
       )}
       aria-label="Live Forex pairs"
@@ -83,7 +83,7 @@ export function ForexTicker({
       <p className="sr-only">
         {feed === "live" ? "Live public FX rates" : "Indicative FX rates"} refreshed every minute.
       </p>
-      <div className="ticker-track flex w-max items-center">
+      <div className="ticker-track flex w-max max-w-none items-center">
         {loop.map((quote, index) => (
           <QuoteChip key={`${quote.pair}-${index}`} quote={quote} />
         ))}

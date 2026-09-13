@@ -23,8 +23,8 @@ export function RecentActivity({
 }) {
   return (
     <GlassCard className="p-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <p className="text-[10px] uppercase tracking-[0.2em] text-gold/80">Ledger</p>
           <h3 className="font-display text-2xl">Recent activity</h3>
           <p className="mt-1 text-xs text-muted">
