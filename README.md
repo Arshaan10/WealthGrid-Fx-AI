@@ -152,8 +152,8 @@ Numbers and routing rules live in [`config/rewards.ts`](config/rewards.ts) and a
 
 | Book | Multiple | Basis | Wallet |
 | --- | --- | --- | --- |
-| Daily trading ROI | **2×** (`caps.tradingMultiple`, `maxReturnPct` 200) | Sum of ACTIVE + COMPLETED package principal | Trading |
-| Network rewards | **3×** (`caps.networkMultiple`, `networkCapPct` 300) | Same principal | Network |
+| Daily trading ROI | **2×** (`caps.tradingMultiple`, `maxReturnPct` 200) | Sum of ACTIVE + COMPLETED **paid** principal (SELF / ADMIN / recovered LOAN). Unpaid flash-loan packages are excluded so they cannot inflate the ceiling. | Trading |
+| Network rewards | **3×** (`caps.networkMultiple`, `networkCapPct` 300) | Same paid-principal basis | Network |
 
 Progress bars on the member overview and package/rewards pages show earned vs each ceiling. When the 2× trading book is full, further daily credits are skipped and the package is marked **COMPLETED**.
 
@@ -200,7 +200,7 @@ Member path: `/dashboard/loans` → apply for any amount **≥ Pro minimum ($50)
 
 | Rule | Behaviour |
 | --- | --- |
-| While outstanding | Daily ROI does **not** generate on the **loan-funded package(s)**. Other packages on the same desk still earn if they are not loan-funded. |
+| While outstanding | Daily ROI does **not** generate on the **loan-funded package(s)**. Other packages on the same desk still earn if they are not loan-funded. Unpaid loan principal does **not** enlarge the desk 2× / 3× basis, and hitting 2× on paid packages does not complete the still-outstanding loan package. |
 | Recovery | Network reward types (`DIRECT`, `TEAM`, `RANK`, `LOYALTY`, `TURNOVER`) auto-apply to `repaid`. |
 | Fully recovered | `status = RECOVERED`, `recoveredAt` set, Network liability cleared by the credits. ROI on that package starts the **next Asia/Dubai calendar day** at regular **1%/day** toward **2×**. After 2× the member renews as today. |
 | Cooling | After the first loan is fully recovered, another loan **cannot be approved** until `recoveredAt + 2 months` (`coolingUntil`, Asia/Dubai calendar months). Members may still submit an application during cooling; ops cannot approve. |

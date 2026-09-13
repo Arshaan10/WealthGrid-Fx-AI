@@ -12,7 +12,12 @@ import {
 } from "@/config/rewards";
 import { resolveDailyRatePct } from "@/lib/boosters";
 import { isTradingWeekday, parseDateKey, zonedDateKey, zonedIsoWeekKey } from "@/lib/clock";
-import { applyNetworkCreditToLoan, isLoanPackageRoiPaused, remainingPrincipal } from "@/lib/flash-loans";
+import {
+  applyNetworkCreditToLoan,
+  isLoanPackageRoiPaused,
+  isUnpaidLoanActivation,
+  remainingPrincipal,
+} from "@/lib/flash-loans";
 import { prisma } from "@/lib/prisma";
 import type { DbClient } from "@/lib/treasury";
 import { asNumber } from "@/lib/utils";
@@ -65,10 +70,10 @@ function ledgerCategory(type: RewardType) {
 }
 
 export async function getCapSnapshot(userId: string, db: DbClient = prisma): Promise<CapSnapshot> {
-  const [activationAgg, payoutGroups] = await Promise.all([
-    db.packageActivation.aggregate({
+  const [activations, payoutGroups] = await Promise.all([
+    db.packageActivation.findMany({
       where: { userId, status: { in: ["ACTIVE", "COMPLETED"] } },
-      _sum: { amount: true },
+      include: { flashLoan: true },
     }),
     db.rewardPayout.groupBy({
       by: ["type"],
@@ -77,7 +82,10 @@ export async function getCapSnapshot(userId: string, db: DbClient = prisma): Pro
     }),
   ]);
 
-  const principal = asNumber(activationAgg._sum.amount ?? 0);
+  const principal = activations.reduce((sum, row) => {
+    if (isUnpaidLoanActivation(row)) return sum;
+    return sum + asNumber(row.amount);
+  }, 0);
   let tradingEarned = 0;
   let networkEarned = 0;
   for (const row of payoutGroups) {
@@ -112,8 +120,14 @@ async function remainingForType(userId: string, type: RewardType, db: DbClient) 
 async function completePackagesIfTradingCapped(userId: string, db: DbClient) {
   const snap = await getCapSnapshot(userId, db);
   if (snap.tradingRemaining > 0.0001) return;
-  await db.packageActivation.updateMany({
+  const active = await db.packageActivation.findMany({
     where: { userId, status: "ACTIVE" },
+    include: { flashLoan: true },
+  });
+  const completable = active.filter((row) => !isUnpaidLoanActivation(row)).map((row) => row.id);
+  if (completable.length === 0) return;
+  await db.packageActivation.updateMany({
+    where: { id: { in: completable } },
     data: { status: "COMPLETED", endsAt: new Date() },
   });
 }

@@ -53,6 +53,16 @@ export function remainingPrincipal(loan: { principal: Prisma.Decimal | string | 
   return Math.max(0, asNumber(loan.principal) - asNumber(loan.repaid));
 }
 
+/** Unpaid loan books must not enlarge the desk 2× / 3× principal basis. */
+export function isUnpaidLoanActivation(row: {
+  fundingSource: string;
+  flashLoan?: { status: string; principal: Prisma.Decimal | string | number; repaid: Prisma.Decimal | string | number } | null;
+}) {
+  if (row.fundingSource !== "LOAN") return false;
+  if (!row.flashLoan) return true;
+  return row.flashLoan.status === "OUTSTANDING" || remainingPrincipal(row.flashLoan) > 0;
+}
+
 export function toLoanView(loan: {
   id: string;
   applicationId: string;
