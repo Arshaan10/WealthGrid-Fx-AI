@@ -23,7 +23,7 @@ Package, referral, rank, gift, withdrawal-fee, **2× / 3× caps**, and **wallet 
 | Layer | Choice |
 | --- | --- |
 | App | Next.js 15 App Router + React 19 |
-| Style | Tailwind CSS, lucide-react, framer-motion (hero only) |
+| Style | Tailwind CSS, lucide-react, CSS fade-in (hero) |
 | Data | Prisma 6 + SQLite (`file:./dev.db`) |
 | Auth | NextAuth Credentials + JWT |
 | Wallets | Wagmi + viem (injected + WalletConnect) |
@@ -37,10 +37,13 @@ cp .env.example .env
 npm install
 npx prisma db push
 npx prisma db seed
-npm run dev
+npm run build
+npm start
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+**`npm run build && npm start` is the fast local way.** Production Next.js serves precompiled pages. `npm run dev` compiles on each request and feels much slower — that is not the site being “slow” in production.
 
 `npm run db:setup` runs push + seed in one step.
 
@@ -81,7 +84,7 @@ WALLETCONNECT_PROJECT_ID=""
 
 Deposits and withdrawals are **USDT BEP-20 on BNB Smart Chain only**. Any injected Web3 wallet or WalletConnect DEX/mobile wallet can connect. The deposit page can send USDT BEP-20 from the connected wallet; withdrawals pay that same standard to the saved address.
 
-`NEXT_PUBLIC_*` aliases are documented in `.env.example` if you want build-time inlining. The app also reads the server names and passes public values into the Wagmi provider from the root layout.
+`NEXT_PUBLIC_*` aliases are documented in `.env.example` if you want build-time inlining. The app also reads the server names and passes public values into the Wagmi provider from the member deposit / withdraw / profile layouts only — marketing pages and the dashboard overview do not load WalletConnect.
 
 **Never commit `COMPANY_WALLET_PRIVATE_KEY`.** `.env` and `*.pem` are gitignored.
 
@@ -112,7 +115,7 @@ Referral code on the demo desk: `WG-DEMO01`. Seed users have unique phones and a
 
 ## Forex ticker
 
-`GET /api/fx` pulls major pairs from the keyless [ExchangeRate-API open endpoint](https://www.exchangerate-api.com/docs/free) (`open.er-api.com`) and caches for 60 seconds. If the public feed is unreachable, the desk falls back to an indicative mock book (including XAUUSD). The marquee sits under the marketing header and at the top of the member dashboard.
+`GET /api/fx` pulls major pairs from the keyless [ExchangeRate-API open endpoint](https://www.exchangerate-api.com/docs/free) (`open.er-api.com`) and is cached for 60 seconds (`Cache-Control: public, s-maxage=60, stale-while-revalidate=120`). The ticker paints immediately with an indicative book, then refreshes client-side after mount so the FX fetch never blocks first paint. If the public feed is unreachable, the desk keeps the mock book (including XAUUSD). The marquee sits under the marketing header and at the top of the member dashboard.
 
 ## Identity (KYC-lite)
 
@@ -232,8 +235,8 @@ Phase 1 could leave `PENDING` reserved withdrawals. Those still appear under a l
 ## Scripts
 
 ```bash
-npm run dev
-npm run build
+npm run build && npm start   # fast local (production)
+npm run dev                  # slower — compiles on demand
 npm run lint
 npm run db:push
 npm run db:seed
@@ -242,13 +245,13 @@ npm run rewards:daily
 npm run rewards:daily -- --date=2026-09-11
 ```
 
-`npm run build` must succeed without a real private key.
+`npm run build` must succeed without a real private key. Use `npm start` after a build when judging load time.
 
 ## Repo map
 
 ```
 app/                 # routes + API (incl. /dashboard/reports, /admin/reports, /api/admin/rewards/run)
-components/          # marketing, desk, brand, charts, wallet connect
+components/          # marketing, desk, brand, charts, wallet connect (desk-scoped)
 config/rewards.ts    # package / rank / 2× 3× caps / wallet routing / timezone
 lib/rewards.ts       # cap + routing enforcement + daily job
 lib/analytics.ts     # Prisma aggregates for desk charts

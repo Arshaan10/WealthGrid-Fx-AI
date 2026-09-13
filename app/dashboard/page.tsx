@@ -10,7 +10,7 @@ import { RecentActivity } from "@/components/desk/RecentActivity";
 import { RoutingBanner } from "@/components/desk/RoutingBanner";
 import { VaultStrip } from "@/components/desk/VaultCard";
 import { rankBySlug } from "@/config/rewards";
-import { rollupWeekly, userEarningsSeries, userWeeklyTradingBars } from "@/lib/analytics";
+import { rollupWeekly, userEarningsSeries, weeklyTradingBarsFromSeries } from "@/lib/analytics";
 import { getPublicChainConfig } from "@/lib/chain";
 import { syncOnchainDesk } from "@/lib/desk-sync";
 import { prisma } from "@/lib/prisma";
@@ -23,21 +23,21 @@ export default async function DashboardHomePage() {
   const chain = getPublicChainConfig();
   await syncOnchainDesk(session.user.id);
 
-  const [user, caps, earnings, weekly] = await Promise.all([
+  const [user, caps, earnings] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
-      include: {
+      select: {
         wallets: true,
         rankProgress: true,
         activations: { where: { status: { in: ["ACTIVE", "COMPLETED"] } }, include: { package: true } },
-        referralsMade: true,
         ledger: { orderBy: { createdAt: "desc" }, take: 8 },
+        _count: { select: { referralsMade: true } },
       },
     }),
     getCapSnapshot(session.user.id),
-    userEarningsSeries(session.user.id, 28),
-    userWeeklyTradingBars(session.user.id, 6),
+    userEarningsSeries(session.user.id, 42),
   ]);
+  const weekly = weeklyTradingBarsFromSeries(earnings, 6);
 
   const trading = user?.wallets.find((w) => w.type === "TRADING");
   const network = user?.wallets.find((w) => w.type === "NETWORK");
@@ -82,7 +82,7 @@ export default async function DashboardHomePage() {
             label: `Network toward 3×`,
             value: `${(caps.networkRatio * 100).toFixed(1)}%`,
           },
-          { label: "Direct referrals", value: String(user?.referralsMade.length ?? 0) },
+          { label: "Direct referrals", value: String(user?._count.referralsMade ?? 0) },
           { label: "Rank", value: rank.name },
           { label: "Confirmations", value: String(chain.requiredConfirmations) },
         ]}
@@ -108,7 +108,7 @@ export default async function DashboardHomePage() {
               ]}
             />
           </div>
-          <DualAreaChart points={rollupWeekly(earnings)} />
+          <DualAreaChart points={rollupWeekly(earnings.slice(-28))} />
         </GlassCard>
         <GlassCard className="p-5">
           <p className="text-[10px] uppercase tracking-[0.2em] text-gold/80">Vault mix</p>

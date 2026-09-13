@@ -60,22 +60,23 @@ function ledgerCategory(type: RewardType) {
 }
 
 export async function getCapSnapshot(userId: string, db: DbClient = prisma): Promise<CapSnapshot> {
-  const [activations, payouts] = await Promise.all([
-    db.packageActivation.findMany({
+  const [activationAgg, payoutGroups] = await Promise.all([
+    db.packageActivation.aggregate({
       where: { userId, status: { in: ["ACTIVE", "COMPLETED"] } },
-      select: { amount: true },
+      _sum: { amount: true },
     }),
-    db.rewardPayout.findMany({
+    db.rewardPayout.groupBy({
+      by: ["type"],
       where: { userId, status: "PAID" },
-      select: { type: true, amount: true },
+      _sum: { amount: true },
     }),
   ]);
 
-  const principal = activations.reduce((sum, row) => sum + asNumber(row.amount), 0);
+  const principal = asNumber(activationAgg._sum.amount ?? 0);
   let tradingEarned = 0;
   let networkEarned = 0;
-  for (const row of payouts) {
-    const amount = asNumber(row.amount);
+  for (const row of payoutGroups) {
+    const amount = asNumber(row._sum.amount ?? 0);
     if (isTradingRewardType(row.type)) tradingEarned += amount;
     else if (isNetworkRewardType(row.type)) networkEarned += amount;
   }

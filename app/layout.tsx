@@ -1,23 +1,20 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Manrope } from "next/font/google";
-import { SessionProvider } from "@/components/providers/SessionProvider";
-import { Web3Provider } from "@/components/providers/Web3Provider";
 import { brand } from "@/config/rewards";
-import { getPublicChainConfig } from "@/lib/chain";
 import "./globals.css";
 
 const display = Cormorant_Garamond({
   subsets: ["latin"],
   weight: ["500", "600", "700"],
   variable: "--font-display",
+  display: "swap",
 });
 
 const sans = Manrope({
   subsets: ["latin"],
   variable: "--font-sans",
+  display: "swap",
 });
-
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: {
@@ -29,20 +26,9 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const chain = getPublicChainConfig();
   return (
     <html lang="en">
-      <body className={`${display.variable} ${sans.variable} font-sans antialiased`}>
-        <SessionProvider>
-          <Web3Provider
-            projectId={chain.walletConnectProjectId}
-            rpcUrl={chain.rpcUrl}
-            chainId={chain.chainId}
-          >
-            {children}
-          </Web3Provider>
-        </SessionProvider>
-      </body>
+      <body className={`${display.variable} ${sans.variable} font-sans antialiased`}>{children}</body>
     </html>
   );
 }
