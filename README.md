@@ -194,7 +194,7 @@ Schedule it with cron if you want unattended runs, for example Monday–Friday a
 
 ## Flash loans
 
-Member path: `/dashboard/loans` → apply for **any amount** → admin reviews on `/admin/loans` → approve **any amount ≤ requested** (or reject) → member activates a **loan-funded package** for the approved amount.
+Member path: `/dashboard/loans` → apply for any amount **≥ Pro minimum ($50)** → admin reviews on `/admin/loans` → approve any amount **between $50 and the request** (or reject) → member activates a **loan-funded package** for the approved amount. Amounts below $50 cannot fund Pro and are rejected at apply/approve so the book cannot get stuck.
 
 **Source of truth** is the `FlashLoan` row: `principal`, `repaid`, `status`. Remaining = `principal − repaid`. Approval also **debits Network available** by the approved amount (`allowNegative`), so the vault can show **−$500**. That negative balance is the liability mirror — Network rewards still credit the wallet (moving it toward zero) and increment `repaid`.
 

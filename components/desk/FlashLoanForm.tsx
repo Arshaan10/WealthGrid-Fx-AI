@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GlassCard } from "@/components/brand/GlassCard";
 import { GoldButton } from "@/components/brand/GoldButton";
+import { flashLoan } from "@/config/rewards";
 
 export function FlashLoanForm({ disabled, reason }: { disabled?: boolean; reason?: string | null }) {
   const router = useRouter();
@@ -36,14 +37,15 @@ export function FlashLoanForm({ disabled, reason }: { disabled?: boolean; reason
     <GlassCard>
       <h3 className="font-display text-2xl">Apply for a flash loan</h3>
       <p className="mt-2 text-sm text-muted">
-        Request any amount. After admin approval the Network wallet shows the liability (may be
+        Request any amount from ${flashLoan.minAmountUsd} (Pro minimum) so the approved book can
+        fund a package. After admin approval the Network wallet shows the liability (may be
         negative). You then activate a package funded by that loan.
       </p>
       <form onSubmit={onSubmit} className="mt-4 space-y-3">
         <input
           name="amount"
           type="number"
-          min={1}
+          min={flashLoan.minAmountUsd}
           step="0.01"
           defaultValue={500}
           disabled={disabled}

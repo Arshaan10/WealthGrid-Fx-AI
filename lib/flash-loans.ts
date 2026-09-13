@@ -193,31 +193,49 @@ export async function applyForFlashLoan(input: {
   });
 }
 
+async function assertCanApproveLoan(userId: string, db: DbClient, now = new Date()) {
+  const outstanding = await getOutstandingLoan(userId, db);
+  if (outstanding) {
+    throw new Error("An outstanding flash loan is already on this desk.");
+  }
+  const recovered = await getLatestRecoveredLoan(userId, db);
+  const cooling = coolingGate(recovered, now);
+  if (cooling.active && cooling.until) {
+    throw new Error(
+      `Cooling period until ${zonedDateKey(cooling.until)} (recovery + ${flashLoan.coolingMonths} months).`,
+    );
+  }
+}
+
 export async function rejectFlashLoanApplication(input: {
   applicationId: string;
   actorId: string;
   note?: string;
 }) {
-  const application = await prisma.flashLoanApplication.findUnique({
-    where: { id: input.applicationId },
-  });
-  if (!application) throw new Error("Application not found.");
-  if (application.status !== "PENDING") throw new Error("This application has already been reviewed.");
-
-  return prisma.flashLoanApplication.update({
-    where: { id: application.id },
+  const reviewedAt = new Date();
+  const claimed = await prisma.flashLoanApplication.updateMany({
+    where: { id: input.applicationId, status: "PENDING" },
     data: {
       status: "REJECTED",
-      reviewedAt: new Date(),
+      reviewedAt,
       reviewedBy: input.actorId,
-      note: input.note?.trim() || application.note,
+      ...(input.note?.trim() ? { note: input.note.trim() } : {}),
     },
   });
+  if (claimed.count !== 1) {
+    const existing = await prisma.flashLoanApplication.findUnique({
+      where: { id: input.applicationId },
+    });
+    if (!existing) throw new Error("Application not found.");
+    throw new Error("This application has already been reviewed.");
+  }
+  return prisma.flashLoanApplication.findUniqueOrThrow({ where: { id: input.applicationId } });
 }
 
 /**
- * Approve any amount ≤ requested. Creates FlashLoan, sets Network available
- * negative by the approved principal (liability mirror).
+ * Approve any amount between the Pro minimum and the requested figure.
+ * Claims the PENDING row inside the same transaction as the FlashLoan + Network debit
+ * so concurrent approve/reject cannot double-book or leave a REJECTED row with a loan.
  */
 export async function approveFlashLoanApplication(input: {
   applicationId: string;
@@ -225,63 +243,78 @@ export async function approveFlashLoanApplication(input: {
   amount: number;
   note?: string;
 }) {
-  const application = await prisma.flashLoanApplication.findUnique({
-    where: { id: input.applicationId },
-  });
-  if (!application) throw new Error("Application not found.");
-  if (application.status !== "PENDING") throw new Error("This application has already been reviewed.");
-
-  const requested = asNumber(application.requested);
-  if (!Number.isFinite(input.amount) || input.amount <= 0) {
-    throw new Error("Approved amount must be greater than zero.");
+  if (!Number.isFinite(input.amount) || input.amount < flashLoan.minAmountUsd) {
+    throw new Error(`Approved amount must be at least $${flashLoan.minAmountUsd}.`);
   }
-  if (input.amount - requested > 0.0001) {
-    throw new Error(`Approved amount cannot exceed the requested ${requested.toFixed(2)}.`);
-  }
-
-  const snap = await getLoanDeskSnapshot(application.userId);
-  if (snap.approveBlockedReason) {
-    throw new Error(snap.approveBlockedReason);
+  if (input.amount > flashLoan.maxAmountUsd) {
+    throw new Error(`Approved amount must be at most $${flashLoan.maxAmountUsd.toLocaleString()}.`);
   }
 
   const approved = Number(input.amount.toFixed(2));
+  const reviewedAt = new Date();
 
-  return prisma.$transaction(async (tx) => {
-    const updated = await tx.flashLoanApplication.update({
-      where: { id: application.id },
-      data: {
-        status: "APPROVED",
-        reviewedAt: new Date(),
-        reviewedBy: input.actorId,
-        note: input.note?.trim() || application.note,
-      },
-    });
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const application = await tx.flashLoanApplication.findUnique({
+        where: { id: input.applicationId },
+      });
+      if (!application) throw new Error("Application not found.");
 
-    const loan = await tx.flashLoan.create({
-      data: {
+      const requested = asNumber(application.requested);
+      if (approved - requested > 0.0001) {
+        throw new Error(`Approved amount cannot exceed the requested ${requested.toFixed(2)}.`);
+      }
+
+      await assertCanApproveLoan(application.userId, tx, reviewedAt);
+
+      const claimed = await tx.flashLoanApplication.updateMany({
+        where: { id: application.id, status: "PENDING" },
+        data: {
+          status: "APPROVED",
+          reviewedAt,
+          reviewedBy: input.actorId,
+          note: input.note?.trim() || application.note,
+        },
+      });
+      if (claimed.count !== 1) {
+        throw new Error("This application has already been reviewed.");
+      }
+
+      const loan = await tx.flashLoan.create({
+        data: {
+          userId: application.userId,
+          applicationId: application.id,
+          requested: application.requested,
+          approved: dec(approved),
+          principal: dec(approved),
+          repaid: 0,
+          status: "OUTSTANDING",
+          openDeskKey: application.userId,
+        },
+      });
+
+      await debitAvailable({
         userId: application.userId,
-        applicationId: application.id,
-        requested: application.requested,
-        approved: dec(approved),
-        principal: dec(approved),
-        repaid: 0,
-        status: "OUTSTANDING",
-      },
-    });
+        type: "NETWORK",
+        amount: approved,
+        category: "LOAN",
+        description: `Flash loan liability ${approved.toFixed(2)} — Network vault`,
+        refId: loan.id,
+        allowNegative: true,
+        db: tx,
+      });
 
-    await debitAvailable({
-      userId: application.userId,
-      type: "NETWORK",
-      amount: approved,
-      category: "LOAN",
-      description: `Flash loan liability ${approved.toFixed(2)} — Network vault`,
-      refId: loan.id,
-      allowNegative: true,
-      db: tx,
+      const updated = await tx.flashLoanApplication.findUniqueOrThrow({
+        where: { id: application.id },
+      });
+      return { application: updated, loan };
     });
-
-    return { application: updated, loan };
-  });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new Error("An outstanding flash loan is already on this desk.");
+    }
+    throw error;
+  }
 }
 
 export function roiStartsOnAfterRecovery(recoveredAt: Date) {
@@ -328,6 +361,7 @@ export async function applyNetworkCreditToLoan(
         status: "RECOVERED",
         recoveredAt,
         coolingUntil,
+        openDeskKey: null,
       },
     });
 

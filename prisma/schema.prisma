@@ -137,6 +137,11 @@ model FlashLoan {
   recoveredAt   DateTime?
   /** Earliest next-loan approval: recoveredAt + coolingMonths (Asia/Dubai calendar). */
   coolingUntil  DateTime?
+  /**
+   * Set to userId while OUTSTANDING, null once RECOVERED.
+   * Enforces at most one open flash loan per desk.
+   */
+  openDeskKey   String?   @unique
   activation    PackageActivation?
 
   @@index([userId, status])

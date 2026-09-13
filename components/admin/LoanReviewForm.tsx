@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GoldButton } from "@/components/brand/GoldButton";
+import { flashLoan } from "@/config/rewards";
 import { formatUsd } from "@/lib/utils";
 
 export function LoanReviewForm({
@@ -51,7 +52,7 @@ export function LoanReviewForm({
         <input
           name="amount"
           type="number"
-          min={1}
+          min={flashLoan.minAmountUsd}
           max={requested}
           step="0.01"
           defaultValue={requested}

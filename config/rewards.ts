@@ -185,9 +185,10 @@ export function boosterTierBySlug(slug: string): BoosterTier {
  */
 export const flashLoan = {
   coolingMonths: 2,
-  minAmountUsd: 1,
+  /** Must be able to fund a Pro package — otherwise the book cannot be activated. */
+  minAmountUsd: packages[0].minAmountUsd,
   maxAmountUsd: 10_000_000,
-  note: "Admin may approve any amount ≤ requested. Approval books a FlashLoan and subtracts the approved amount from the Network wallet (available may be negative). Daily ROI does not generate on loan-funded packages while remaining principal > 0. Network reward credits auto-apply to repaid. When remaining hits 0, ROI starts the next Asia/Dubai calendar day under regular 1%/day terms toward 2×. After the first loan is fully recovered, another loan cannot be approved until ≥ 2 months after the recovery date (`coolingUntil`).",
+  note: "Request and approve any amount from the Pro minimum ($50) up to the requested figure. Approval books a FlashLoan and subtracts the approved amount from the Network wallet (available may be negative). Daily ROI does not generate on loan-funded packages while remaining principal > 0. Network reward credits auto-apply to repaid. When remaining hits 0, ROI starts the next Asia/Dubai calendar day under regular 1%/day terms toward 2×. After the first loan is fully recovered, another loan cannot be approved until ≥ 2 months after the recovery date (`coolingUntil`).",
 } as const;
 
 export const referrals = {

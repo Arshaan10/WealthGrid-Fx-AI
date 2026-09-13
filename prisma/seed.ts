@@ -881,6 +881,7 @@ async function main() {
         principal: "500",
         repaid: "150",
         status: "OUTSTANDING",
+        openDeskKey: loanUser.id,
         approvedAt: noonUtc(11),
       },
     });

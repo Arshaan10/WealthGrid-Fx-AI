@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { flashLoan } from "@/config/rewards";
 
 export const registerSchema = z.object({
   name: z.string().min(2).max(80),
@@ -89,14 +90,14 @@ export const treasuryTopupSchema = z.object({
 });
 
 export const flashLoanApplySchema = z.object({
-  amount: z.coerce.number().positive().max(10_000_000),
+  amount: z.coerce.number().min(flashLoan.minAmountUsd).max(flashLoan.maxAmountUsd),
   note: z.string().max(240).optional(),
 });
 
 export const flashLoanReviewSchema = z.object({
   id: z.string().min(1),
   decision: z.enum(["APPROVE", "REJECT"]),
-  amount: z.coerce.number().positive().max(10_000_000).optional(),
+  amount: z.coerce.number().min(flashLoan.minAmountUsd).max(flashLoan.maxAmountUsd).optional(),
   note: z.string().max(240).optional(),
 });
 
