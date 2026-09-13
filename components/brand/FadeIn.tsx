@@ -1,7 +1,5 @@
-"use client";
-
-import { motion } from "framer-motion";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 export function FadeIn({
   children,
@@ -13,13 +11,11 @@ export function FadeIn({
   delay?: number;
 }) {
   return (
-    <motion.div
-      className={className}
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay }}
+    <div
+      className={cn("fade-up", className)}
+      style={{ animationDelay: `${delay}s` } as CSSProperties}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }

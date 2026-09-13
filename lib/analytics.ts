@@ -72,15 +72,14 @@ export async function userEarningsSeries(userId: string, days = 28): Promise<Day
   }));
 }
 
-export async function userWeeklyTradingBars(userId: string, weeks = 6) {
-  const days = weeks * 7;
-  const series = await userEarningsSeries(userId, days);
+export function weeklyTradingBarsFromSeries(series: DayPoint[], weeks = 6) {
+  const slice = series.slice(-weeks * 7);
   const buckets: { label: string; value: number }[] = [];
 
-  for (let i = 0; i < series.length; i += 7) {
-    const slice = series.slice(i, i + 7);
-    const value = slice.reduce((sum, row) => sum + row.trading, 0);
-    const last = slice[slice.length - 1];
+  for (let i = 0; i < slice.length; i += 7) {
+    const week = slice.slice(i, i + 7);
+    const value = week.reduce((sum, row) => sum + row.trading, 0);
+    const last = week[week.length - 1];
     buckets.push({
       label: last ? shortLabel(last.date) : `W${buckets.length + 1}`,
       value: Number(value.toFixed(2)),
@@ -88,6 +87,11 @@ export async function userWeeklyTradingBars(userId: string, weeks = 6) {
   }
 
   return buckets;
+}
+
+export async function userWeeklyTradingBars(userId: string, weeks = 6) {
+  const series = await userEarningsSeries(userId, weeks * 7);
+  return weeklyTradingBarsFromSeries(series, weeks);
 }
 
 export async function platformVolumeSeries(days = 21): Promise<VolumePoint[]> {
