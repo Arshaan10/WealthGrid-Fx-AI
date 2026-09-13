@@ -54,9 +54,10 @@ export default async function PackagePage() {
         </dl>
       </GlassCard>
       <RoutingBanner />
-      {capSnap.principal > 0 ? (
+      {capSnap.principal > 0 || capSnap.networkPrincipal > 0 ? (
         <DualCapProgress
           principal={capSnap.principal}
+          networkPrincipal={capSnap.networkPrincipal}
           tradingEarned={capSnap.tradingEarned}
           tradingCap={capSnap.tradingCap}
           networkEarned={capSnap.networkEarned}

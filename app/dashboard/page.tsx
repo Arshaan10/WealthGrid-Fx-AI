@@ -93,6 +93,7 @@ export default async function DashboardHomePage() {
       />
       <DualCapProgress
         principal={caps.principal}
+        networkPrincipal={caps.networkPrincipal}
         tradingEarned={caps.tradingEarned}
         tradingCap={caps.tradingCap}
         networkEarned={caps.networkEarned}

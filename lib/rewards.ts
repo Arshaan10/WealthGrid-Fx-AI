@@ -24,7 +24,10 @@ import { asNumber } from "@/lib/utils";
 import { creditWallet } from "@/lib/wallets";
 
 export type CapSnapshot = {
+  /** Paid principal (SELF / ADMIN / recovered LOAN) — 2× trading basis. */
   principal: number;
+  /** Includes unpaid LOAN so Network recovery credits are not cap-blocked. */
+  networkPrincipal: number;
   tradingEarned: number;
   networkEarned: number;
   tradingCap: number;
@@ -82,10 +85,13 @@ export async function getCapSnapshot(userId: string, db: DbClient = prisma): Pro
     }),
   ]);
 
-  const principal = activations.reduce((sum, row) => {
-    if (isUnpaidLoanActivation(row)) return sum;
-    return sum + asNumber(row.amount);
-  }, 0);
+  let principal = 0;
+  let networkPrincipal = 0;
+  for (const row of activations) {
+    const amount = asNumber(row.amount);
+    networkPrincipal += amount;
+    if (!isUnpaidLoanActivation(row)) principal += amount;
+  }
   let tradingEarned = 0;
   let networkEarned = 0;
   for (const row of payoutGroups) {
@@ -95,12 +101,13 @@ export async function getCapSnapshot(userId: string, db: DbClient = prisma): Pro
   }
 
   const tradingCap = principal * caps.tradingMultiple;
-  const networkCap = principal * caps.networkMultiple;
+  const networkCap = networkPrincipal * caps.networkMultiple;
   const tradingRemaining = Math.max(0, tradingCap - tradingEarned);
   const networkRemaining = Math.max(0, networkCap - networkEarned);
 
   return {
     principal,
+    networkPrincipal,
     tradingEarned,
     networkEarned,
     tradingCap,

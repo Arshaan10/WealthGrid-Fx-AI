@@ -34,6 +34,7 @@ export default async function RewardsHistoryPage() {
       <RoutingBanner />
       <DualCapProgress
         principal={caps.principal}
+        networkPrincipal={caps.networkPrincipal}
         tradingEarned={caps.tradingEarned}
         tradingCap={caps.tradingCap}
         networkEarned={caps.networkEarned}
