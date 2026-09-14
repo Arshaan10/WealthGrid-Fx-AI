@@ -4,21 +4,30 @@ import {
   isNetworkRewardType,
   isTradingRewardType,
   loyalty,
-  packages,
   referrals,
   rewardsClock,
   walletForRewardType,
   walletRouting,
   type RewardType,
 } from "@/config/rewards";
+import { resolveDailyRatePct } from "@/lib/boosters";
 import { isTradingWeekday, parseDateKey, zonedDateKey, zonedIsoWeekKey } from "@/lib/clock";
+import {
+  applyNetworkCreditToLoan,
+  isLoanPackageRoiPaused,
+  isUnpaidLoanActivation,
+  remainingPrincipal,
+} from "@/lib/flash-loans";
 import { prisma } from "@/lib/prisma";
 import type { DbClient } from "@/lib/treasury";
 import { asNumber } from "@/lib/utils";
 import { creditWallet } from "@/lib/wallets";
 
 export type CapSnapshot = {
+  /** Paid principal (SELF / ADMIN / recovered LOAN) — 2× trading basis. */
   principal: number;
+  /** Includes unpaid LOAN so Network recovery credits are not cap-blocked. */
+  networkPrincipal: number;
   tradingEarned: number;
   networkEarned: number;
   tradingCap: number;
@@ -36,6 +45,7 @@ export type RewardCreditResult = {
   amount: number;
   wallet: "TRADING" | "NETWORK";
   payoutId?: string;
+  loanRecovery?: boolean;
 };
 
 export type DailyJobResult = {
@@ -47,6 +57,9 @@ export type DailyJobResult = {
   skippedWeekend: boolean;
   skippedCap: number;
   skippedDuplicate: number;
+  skippedLoan: number;
+  skippedRoiHold: number;
+  loanRecoveries: number;
   usersTouched: number;
   notes: string[];
 };
@@ -60,10 +73,10 @@ function ledgerCategory(type: RewardType) {
 }
 
 export async function getCapSnapshot(userId: string, db: DbClient = prisma): Promise<CapSnapshot> {
-  const [activationAgg, payoutGroups] = await Promise.all([
-    db.packageActivation.aggregate({
+  const [activations, payoutGroups] = await Promise.all([
+    db.packageActivation.findMany({
       where: { userId, status: { in: ["ACTIVE", "COMPLETED"] } },
-      _sum: { amount: true },
+      include: { flashLoan: true },
     }),
     db.rewardPayout.groupBy({
       by: ["type"],
@@ -72,7 +85,13 @@ export async function getCapSnapshot(userId: string, db: DbClient = prisma): Pro
     }),
   ]);
 
-  const principal = asNumber(activationAgg._sum.amount ?? 0);
+  let principal = 0;
+  let networkPrincipal = 0;
+  for (const row of activations) {
+    const amount = asNumber(row.amount);
+    networkPrincipal += amount;
+    if (!isUnpaidLoanActivation(row)) principal += amount;
+  }
   let tradingEarned = 0;
   let networkEarned = 0;
   for (const row of payoutGroups) {
@@ -82,12 +101,13 @@ export async function getCapSnapshot(userId: string, db: DbClient = prisma): Pro
   }
 
   const tradingCap = principal * caps.tradingMultiple;
-  const networkCap = principal * caps.networkMultiple;
+  const networkCap = networkPrincipal * caps.networkMultiple;
   const tradingRemaining = Math.max(0, tradingCap - tradingEarned);
   const networkRemaining = Math.max(0, networkCap - networkEarned);
 
   return {
     principal,
+    networkPrincipal,
     tradingEarned,
     networkEarned,
     tradingCap,
@@ -107,8 +127,14 @@ async function remainingForType(userId: string, type: RewardType, db: DbClient) 
 async function completePackagesIfTradingCapped(userId: string, db: DbClient) {
   const snap = await getCapSnapshot(userId, db);
   if (snap.tradingRemaining > 0.0001) return;
-  await db.packageActivation.updateMany({
+  const active = await db.packageActivation.findMany({
     where: { userId, status: "ACTIVE" },
+    include: { flashLoan: true },
+  });
+  const completable = active.filter((row) => !isUnpaidLoanActivation(row)).map((row) => row.id);
+  if (completable.length === 0) return;
+  await db.packageActivation.updateMany({
+    where: { id: { in: completable } },
     data: { status: "COMPLETED", endsAt: new Date() },
   });
 }
@@ -178,6 +204,12 @@ export async function creditCappedReward(input: {
     db,
   });
 
+  let loanRecovery = false;
+  if (isNetworkRewardType(input.type)) {
+    const recovery = await applyNetworkCreditToLoan(input.userId, amount, when, db);
+    loanRecovery = Boolean(recovery && recovery.applied > 0);
+  }
+
   if (isTradingRewardType(input.type)) {
     await completePackagesIfTradingCapped(input.userId, db);
   }
@@ -188,6 +220,7 @@ export async function creditCappedReward(input: {
     amount: asNumber(amount),
     wallet,
     payoutId: payout.id,
+    loanRecovery,
   };
 }
 
@@ -195,6 +228,7 @@ async function creditUplineTeam(input: {
   sourceUserId: string;
   dailyAmount: number;
   dateKey: string;
+  sourceKey: string;
   when: Date;
   db: DbClient;
 }) {
@@ -218,7 +252,7 @@ async function creditUplineTeam(input: {
         type: "TEAM",
         amount,
         note: `L${level + 1} team trading ${pct}% of daily credit`,
-        periodKey: `TEAM:${input.dateKey}:${input.sourceUserId}:L${level + 1}`,
+        periodKey: `TEAM:${input.dateKey}:${input.sourceKey}:L${level + 1}`,
         createdAt: input.when,
         db: input.db,
       });
@@ -232,31 +266,52 @@ async function creditUplineTeam(input: {
   return results;
 }
 
-async function creditWeeklyLoyalty(input: { userId: string; principal: number; when: Date; db: DbClient }) {
-  const weekKey = zonedIsoWeekKey(input.when, rewardsClock.timezone);
+async function creditWeeklyLoyalty(input: {
+  userId: string;
+  principal: number;
+  when: Date;
+  periodKey: string;
+  db: DbClient;
+}) {
   const amount = (input.principal * loyalty.weeklyPct) / 100;
   return creditCappedReward({
     userId: input.userId,
     type: "LOYALTY",
     amount,
     note: `Weekly loyalty ${loyalty.weeklyPct}% of active principal (Network wallet)`,
-    periodKey: `LOYALTY:${weekKey}`,
+    periodKey: input.periodKey,
     createdAt: input.when,
     db: input.db,
+  });
+}
+
+async function hasLegacyDaily(userId: string, dateKey: string, db: DbClient) {
+  return db.rewardPayout.findFirst({
+    where: { userId, type: "DAILY", periodKey: `DAILY:${dateKey}` },
+    select: { id: true },
+  });
+}
+
+async function hasLegacyLoyalty(userId: string, weekKey: string, db: DbClient) {
+  return db.rewardPayout.findFirst({
+    where: { userId, type: "LOYALTY", periodKey: `LOYALTY:${weekKey}` },
+    select: { id: true },
   });
 }
 
 /**
  * Apply one calendar day's rewards.
  * - Trading (DAILY): Mon–Fri only, Trading wallet, 2× cap
+ *   per-package rate from booster tier + live active-direct volume
+ *   skipped while a flash loan on that package is unpaid / before roiStartsOn
  * - Team: 24/7, Network wallet, 3× cap — percent of that day's trading credit
- * - Loyalty: 24/7, Network wallet, 3× cap — once per ISO week
+ * - Loyalty: 24/7, Network wallet, 3× cap — once per ISO week per package
+ * Network reward credits auto-apply to outstanding flash-loan `repaid`.
  */
 export async function runDailyRewardJob(input: { date?: Date; actorId?: string | null } = {}): Promise<DailyJobResult> {
   const when = input.date ?? new Date();
   const dateKey = zonedDateKey(when, rewardsClock.timezone);
   const tradingDay = isTradingWeekday(when, rewardsClock.timezone);
-  const pro = packages[0];
 
   const result: DailyJobResult = {
     timezone: rewardsClock.timezone,
@@ -267,68 +322,106 @@ export async function runDailyRewardJob(input: { date?: Date; actorId?: string |
     skippedWeekend: !tradingDay,
     skippedCap: 0,
     skippedDuplicate: 0,
+    skippedLoan: 0,
+    skippedRoiHold: 0,
+    loanRecoveries: 0,
     usersTouched: 0,
     notes: [
       walletRouting.trading.copy,
       walletRouting.network.copy,
       rewardsClock.note,
+      "Loan-funded packages skip daily ROI while remaining principal > 0; ROI starts the next Asia/Dubai day after recovery.",
+      "Booster rates are computed from currently ACTIVE first-line package volume.",
     ],
   };
 
   const activations = await prisma.packageActivation.findMany({
     where: { status: "ACTIVE" },
-    include: { user: { select: { id: true, name: true } } },
+    include: {
+      user: { select: { id: true, name: true } },
+      flashLoan: true,
+    },
   });
 
   const touched = new Set<string>();
+  const weekKey = zonedIsoWeekKey(when, rewardsClock.timezone);
 
   for (const activation of activations) {
     const principal = asNumber(activation.amount);
     if (principal <= 0) continue;
 
     await prisma.$transaction(async (tx) => {
-      if (tradingDay) {
-        const daily = (principal * pro.dailyRatePct) / 100;
-        const dailyResult = await creditCappedReward({
-          userId: activation.userId,
-          type: "DAILY",
-          amount: daily,
-          note: `Daily trading ROI ${pro.dailyRatePct}% of ${principal.toFixed(2)} → Trading wallet`,
-          periodKey: `DAILY:${dateKey}`,
-          createdAt: when,
-          db: tx,
-        });
+      const pause = isLoanPackageRoiPaused({
+        fundingSource: activation.fundingSource,
+        roiStartsOn: activation.roiStartsOn,
+        loanStatus: activation.flashLoan?.status ?? null,
+        remaining: activation.flashLoan ? remainingPrincipal(activation.flashLoan) : 0,
+        dateKey,
+      });
 
-        if (dailyResult.paid) {
-          result.tradingCredits += dailyResult.amount;
-          touched.add(activation.userId);
-          const teamResults = await creditUplineTeam({
-            sourceUserId: activation.userId,
-            dailyAmount: dailyResult.amount,
-            dateKey,
-            when,
+      if (tradingDay) {
+        if (pause.paused) {
+          if (pause.reason === "loan") result.skippedLoan += 1;
+          else result.skippedRoiHold += 1;
+        } else {
+          const rate = await resolveDailyRatePct({
+            userId: activation.userId,
+            boosterTier: activation.boosterTier,
+            fundingSource: activation.fundingSource,
             db: tx,
           });
-          for (const team of teamResults) {
-            if (team.paid) {
-              result.networkCredits += team.amount;
-              touched.add(activation.userId);
-            } else if (team.reason === "cap") result.skippedCap += 1;
-            else if (team.reason === "duplicate") result.skippedDuplicate += 1;
-          }
-        } else if (dailyResult.reason === "cap") result.skippedCap += 1;
-        else if (dailyResult.reason === "duplicate") result.skippedDuplicate += 1;
+          const daily = (principal * rate.ratePct) / 100;
+          const legacy = await hasLegacyDaily(activation.userId, dateKey, tx);
+          const dailyResult = legacy
+            ? { paid: false as const, skipped: true as const, reason: "duplicate" as const, amount: 0, wallet: "TRADING" as const }
+            : await creditCappedReward({
+                userId: activation.userId,
+                type: "DAILY",
+                amount: daily,
+                note: `Daily trading ROI ${rate.ratePct}% of ${principal.toFixed(2)} (${rate.tier}, directs ${rate.activeDirectVolume.toFixed(0)}) → Trading wallet`,
+                periodKey: `DAILY:${dateKey}:${activation.id}`,
+                createdAt: when,
+                db: tx,
+              });
+
+          if (dailyResult.paid) {
+            result.tradingCredits += dailyResult.amount;
+            touched.add(activation.userId);
+            const teamResults = await creditUplineTeam({
+              sourceUserId: activation.userId,
+              dailyAmount: dailyResult.amount,
+              dateKey,
+              sourceKey: activation.id,
+              when,
+              db: tx,
+            });
+            for (const team of teamResults) {
+              if (team.paid) {
+                result.networkCredits += team.amount;
+                touched.add(activation.userId);
+                if (team.loanRecovery) result.loanRecoveries += 1;
+              } else if (team.reason === "cap") result.skippedCap += 1;
+              else if (team.reason === "duplicate") result.skippedDuplicate += 1;
+            }
+          } else if (dailyResult.reason === "cap") result.skippedCap += 1;
+          else if (dailyResult.reason === "duplicate") result.skippedDuplicate += 1;
+        }
       }
 
-      const loyaltyResult = await creditWeeklyLoyalty({
-        userId: activation.userId,
-        principal,
-        when,
-        db: tx,
-      });
+      const legacyLoyalty = await hasLegacyLoyalty(activation.userId, weekKey, tx);
+      const loyaltyResult = legacyLoyalty
+        ? { paid: false as const, skipped: true as const, reason: "duplicate" as const, amount: 0, wallet: "NETWORK" as const }
+        : await creditWeeklyLoyalty({
+            userId: activation.userId,
+            principal,
+            when,
+            periodKey: `LOYALTY:${weekKey}:${activation.id}`,
+            db: tx,
+          });
       if (loyaltyResult.paid) {
         result.networkCredits += loyaltyResult.amount;
         touched.add(activation.userId);
+        if ("loanRecovery" in loyaltyResult && loyaltyResult.loanRecovery) result.loanRecoveries += 1;
       } else if (loyaltyResult.reason === "cap") result.skippedCap += 1;
       else if (loyaltyResult.reason === "duplicate") result.skippedDuplicate += 1;
     });
@@ -351,6 +444,9 @@ export async function runDailyRewardJob(input: { date?: Date; actorId?: string |
         networkCredits: result.networkCredits,
         skippedCap: result.skippedCap,
         skippedDuplicate: result.skippedDuplicate,
+        skippedLoan: result.skippedLoan,
+        skippedRoiHold: result.skippedRoiHold,
+        loanRecoveries: result.loanRecoveries,
         usersTouched: result.usersTouched,
       }),
     },

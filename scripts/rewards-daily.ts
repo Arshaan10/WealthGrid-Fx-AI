@@ -28,6 +28,9 @@ async function main() {
   console.log(`  users        ${result.usersTouched}`);
   console.log(`  skipped cap  ${result.skippedCap}`);
   console.log(`  skipped dup  ${result.skippedDuplicate}`);
+  console.log(`  skipped loan ${result.skippedLoan}`);
+  console.log(`  skipped hold ${result.skippedRoiHold}`);
+  console.log(`  loan recover ${result.loanRecoveries}`);
 }
 
 main().catch((error) => {

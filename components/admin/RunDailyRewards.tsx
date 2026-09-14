@@ -12,6 +12,9 @@ type JobResult = {
   networkCredits: number;
   skippedCap: number;
   skippedDuplicate: number;
+  skippedLoan?: number;
+  skippedRoiHold?: number;
+  loanRecoveries?: number;
   usersTouched: number;
 };
 
@@ -46,8 +49,9 @@ export function RunDailyRewards() {
     <div className="rounded-xl border border-gold-line/40 bg-black/25 p-4">
       <p className="text-[11px] uppercase tracking-[0.18em] text-gold/80">Daily reward job</p>
       <p className="mt-2 text-sm text-muted">
-        Applies Mon–Fri trading ROI (2× cap → Trading wallet) and network credits (3× cap →
-        Network wallet). Timezone {rewardsClock.timezone}. Idempotent — re-runs skip days already booked.
+        Applies Mon–Fri trading ROI (2× cap → Trading wallet, live booster rate) and network
+        credits (3× cap → Network wallet, auto-applied to open flash loans). Loan-funded packages
+        skip daily ROI while unpaid. Timezone {rewardsClock.timezone}. Idempotent.
       </p>
       <div className="mt-4 flex flex-wrap items-end gap-3">
         <label className="text-xs text-muted">
@@ -69,7 +73,8 @@ export function RunDailyRewards() {
           {result.dateKey} · {result.tradingDay ? "trading day" : "weekend"} · trading{" "}
           {result.tradingCredits.toFixed(2)} · network {result.networkCredits.toFixed(2)} ·{" "}
           {result.usersTouched} users · skipped cap {result.skippedCap} · skipped dup{" "}
-          {result.skippedDuplicate}
+          {result.skippedDuplicate} · skipped loan {result.skippedLoan ?? 0} · recoveries{" "}
+          {result.loanRecoveries ?? 0}
         </p>
       ) : null}
     </div>

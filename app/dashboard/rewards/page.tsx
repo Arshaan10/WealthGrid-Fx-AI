@@ -25,14 +25,16 @@ export default async function RewardsHistoryPage() {
       <GlassCard>
         <h2 className="font-display text-3xl">Reward history</h2>
         <p className="mt-2 text-sm text-muted">
-          Daily trading ROI credits the Trading wallet Monday–Friday (2× cap). Direct, team, rank,
-          loyalty, and turnover credit the Network wallet 24/7 (3× cap). Run{" "}
-          <code>npm run rewards:daily</code> or the admin job to book the next day.
+          Daily trading ROI credits the Trading wallet Monday–Friday (2× cap) at the live booster or
+          regular rate. Loan-funded packages skip daily ROI until recovered. Direct, team, rank,
+          loyalty, and turnover credit the Network wallet 24/7 (3× cap) and auto-apply to any open
+          flash loan. Run <code>npm run rewards:daily</code> or the admin job to book the next day.
         </p>
       </GlassCard>
       <RoutingBanner />
       <DualCapProgress
         principal={caps.principal}
+        networkPrincipal={caps.networkPrincipal}
         tradingEarned={caps.tradingEarned}
         tradingCap={caps.tradingCap}
         networkEarned={caps.networkEarned}

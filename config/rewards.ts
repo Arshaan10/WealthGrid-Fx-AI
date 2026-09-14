@@ -10,6 +10,15 @@
  *   - Daily trading credits → Trading wallet, Monday–Friday only
  *   - Network rewards       → Network wallet, 24/7
  *
+ * Flash loans: Network available may go negative (liability). While a loan is
+ * OUTSTANDING (principal − repaid > 0), loan-funded packages skip daily ROI.
+ * Network reward credits auto-apply to `repaid`. After full recovery, ROI
+ * starts the next Asia/Dubai calendar day. Next loan cannot be approved until
+ * `recoveredAt + flashLoan.coolingMonths`.
+ *
+ * ROI boosters: member-chosen tier on SELF-funded activations. Daily rate is
+ * computed from live ACTIVE direct-referral package volume (see `boosters`).
+ *
  * Trading-day calendar is evaluated in `rewardsClock.timezone` (default Asia/Dubai, UTC+4, no DST).
  */
 
@@ -29,7 +38,8 @@ export const rewardsClock = {
 
 /**
  * Lifetime earning ceilings relative to activated package principal
- * (sum of ACTIVE + COMPLETED activations).
+ * Trading 2× uses paid principal (SELF / ADMIN / recovered LOAN).
+ * Network 3× includes unpaid LOAN so recovery credits are not cap-blocked.
  */
 export const caps = {
   /** Daily trading / package ROI: member can earn up to 2× principal. */
@@ -80,8 +90,11 @@ export const packages = [
     slug: "pro",
     name: "Pro",
     minAmountUsd: 50,
-    /** Illustrative daily trading credit toward the package — not a guarantee. */
-    dailyRatePct: 0.5,
+    /**
+     * Regular / admin-grant daily trading credit (NONE booster).
+     * Booster / Super / Ultra override this from live direct volume.
+     */
+    dailyRatePct: 1,
     /**
      * Package-side (trading ROI) ceiling as a percent of activated amount.
      * 200% = 2× cap (`caps.tradingMultiple`).
@@ -93,9 +106,91 @@ export const packages = [
      */
     networkCapPct: caps.networkMultiple * 100,
     blurb:
-      "The desk package. Activate from $50 on the Trading wallet. Daily trading ROI credits Trading (Mon–Fri, 2× cap). Network rewards credit Network (24/7, 3× cap). Figures are structured — never guaranteed.",
+      "The desk package. Activate from $50 on the Trading wallet, pick an ROI booster tier, or fund with an approved flash loan. Regular and admin-grant desks earn 1%/day (Mon–Fri, 2×). Boosters scale with live active-direct volume. Network rewards credit Network (24/7, 3×). Figures are structured — never guaranteed.",
   },
 ] as const;
+
+export type FundingSource = "SELF" | "LOAN" | "ADMIN";
+export type BoosterTier = "NONE" | "BOOSTER" | "SUPER" | "ULTRA";
+
+/**
+ * Personal-investment ROI boosters. Rate is recomputed every daily job from
+ * **active direct referral business**: sum of amounts on currently ACTIVE
+ * package activations owned by first-line (referredBy) members. Completed or
+ * cancelled packages do not count. Volume must remain active continuously —
+ * dropping below a threshold lowers the next trading day's rate.
+ *
+ * Boosters never run on a package while its flash loan is unpaid.
+ * All booster (and regular) trading credits still stop at the 2× personal cap.
+ */
+export const boosters = {
+  /** Regular / admin-grant / post-recovery loan packages. */
+  regularDailyRatePct: 1,
+  activeVolumeDefinition:
+    "Active direct business = sum of PackageActivation.amount where status is ACTIVE and the owner is a first-line referral (User.referredById). Must remain ACTIVE continuously; the daily job re-reads live volume each run.",
+  tiers: {
+    NONE: {
+      slug: "NONE" as const,
+      name: "Regular",
+      maxDailyPct: 1,
+      copy: "1%/day toward 2×. Used for admin grants, loan-funded packages after recovery, and members who do not pick a booster.",
+      thresholds: [{ minActiveDirectVolume: 0, dailyPct: 1 }],
+    },
+    BOOSTER: {
+      slug: "BOOSTER" as const,
+      name: "ROI Booster",
+      maxDailyPct: 2,
+      copy: "Up to 2%/day when active directs are ≥ $10,000; otherwise 1%/day. Max 2×.",
+      thresholds: [
+        { minActiveDirectVolume: 10_000, dailyPct: 2 },
+        { minActiveDirectVolume: 0, dailyPct: 1 },
+      ],
+    },
+    SUPER: {
+      slug: "SUPER" as const,
+      name: "Super Booster",
+      maxDailyPct: 4,
+      copy: "4%/day at ≥ $25,000 active directs; 2%/day at ≥ $10,000; else 1%/day. Max 2×.",
+      thresholds: [
+        { minActiveDirectVolume: 25_000, dailyPct: 4 },
+        { minActiveDirectVolume: 10_000, dailyPct: 2 },
+        { minActiveDirectVolume: 0, dailyPct: 1 },
+      ],
+    },
+    ULTRA: {
+      slug: "ULTRA" as const,
+      name: "Ultra Booster",
+      maxDailyPct: 5,
+      copy: "5%/day at ≥ $50,000 active directs; 4% at ≥ $25,000; 2% at ≥ $10,000; else 1%/day. Max 2×.",
+      thresholds: [
+        { minActiveDirectVolume: 50_000, dailyPct: 5 },
+        { minActiveDirectVolume: 25_000, dailyPct: 4 },
+        { minActiveDirectVolume: 10_000, dailyPct: 2 },
+        { minActiveDirectVolume: 0, dailyPct: 1 },
+      ],
+    },
+  },
+} as const;
+
+export function boosterTierBySlug(slug: string): BoosterTier {
+  if (slug === "BOOSTER" || slug === "SUPER" || slug === "ULTRA" || slug === "NONE") {
+    return slug;
+  }
+  return "NONE";
+}
+
+/**
+ * Flash-loan policy. Source of truth for an open book is FlashLoan
+ * (`principal`, `repaid`, `status`). Network `available` is the liability
+ * mirror and is allowed to go negative by the approved principal.
+ */
+export const flashLoan = {
+  coolingMonths: 2,
+  /** Must be able to fund a Pro package — otherwise the book cannot be activated. */
+  minAmountUsd: packages[0].minAmountUsd,
+  maxAmountUsd: 10_000_000,
+  note: "Request and approve any amount from the Pro minimum ($50) up to the requested figure. Approval books a FlashLoan and subtracts the approved amount from the Network wallet (available may be negative). Daily ROI does not generate on loan-funded packages while remaining principal > 0. Network reward credits auto-apply to repaid. When remaining hits 0, ROI starts the next Asia/Dubai calendar day under regular 1%/day terms toward 2×. After the first loan is fully recovered, another loan cannot be approved until ≥ 2 months after the recovery date (`coolingUntil`).",
+} as const;
 
 export const referrals = {
   directPct: 7,

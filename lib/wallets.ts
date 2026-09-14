@@ -73,21 +73,25 @@ export async function debitAvailable(input: {
   category: string;
   description: string;
   refId?: string;
+  /** Flash-loan liability may drive Network available below zero. */
+  allowNegative?: boolean;
+  db?: DbClient;
 }) {
+  const db = input.db ?? prisma;
   const amount = new Prisma.Decimal(input.amount);
-  const wallet = await getOrCreateWallet(input.userId, input.type);
+  const wallet = await getOrCreateWallet(input.userId, input.type, db);
   const available = new Prisma.Decimal(wallet.available);
-  if (available.lessThan(amount)) {
+  if (!input.allowNegative && available.lessThan(amount)) {
     throw new Error("Insufficient available balance");
   }
   const next = available.minus(amount);
 
-  await prisma.walletBalance.update({
+  await db.walletBalance.update({
     where: { id: wallet.id },
     data: { available: next },
   });
 
-  await prisma.ledgerEntry.create({
+  await db.ledgerEntry.create({
     data: {
       userId: input.userId,
       walletType: input.type,

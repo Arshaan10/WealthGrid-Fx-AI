@@ -78,17 +78,20 @@ export function CapBar({
 
 export function DualCapProgress({
   principal,
+  networkPrincipal,
   tradingEarned,
   tradingCap,
   networkEarned,
   networkCap,
 }: {
   principal: number;
+  networkPrincipal?: number;
   tradingEarned: number;
   tradingCap: number;
   networkEarned: number;
   networkCap: number;
 }) {
+  const networkBasis = networkPrincipal ?? principal;
   return (
     <GlassCard className="overflow-hidden p-5">
       <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -97,7 +100,10 @@ export function DualCapProgress({
           <h3 className="font-display text-2xl">Cap progress</h3>
         </div>
         <p className="shrink-0 text-xs text-muted">
-          Principal {formatUsd(principal)} · trading {caps.tradingMultiple}× · network {caps.networkMultiple}×
+          Paid {formatUsd(principal)} · {caps.tradingMultiple}× trading
+          {networkBasis !== principal
+            ? ` · network basis ${formatUsd(networkBasis)} (${caps.networkMultiple}×, includes unpaid loan)`
+            : ` · ${caps.networkMultiple}× network`}
         </p>
       </div>
       <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2">

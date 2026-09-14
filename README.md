@@ -6,14 +6,14 @@ Marketing site, member dashboard, and admin dashboard on **Next.js App Router**,
 
 Brand spelling is **Whealth**, not Wealth.
 
-Package, referral, rank, gift, withdrawal-fee, **2× / 3× caps**, and **wallet routing** live in [`config/rewards.ts`](config/rewards.ts). The daily job that books those credits is `npm run rewards:daily`.
+Package, referral, rank, gift, withdrawal-fee, **2× / 3× caps**, **wallet routing**, **ROI boosters**, and **flash loans** live in [`config/rewards.ts`](config/rewards.ts). The daily job that books those credits is `npm run rewards:daily`.
 
 ## What is included
 
 - Public pages: Home, About, Packages, Rewards, Ranks, How it works, FAQ, Contact, Login, Register, email verify
 - Live Forex pairs ticker (gold/black marquee) on marketing pages and the member desk
-- Member desk (`/dashboard`): wallets + ledger, **analytics / reports**, activate Pro, **wallet-connect deposit**, **auto-approved withdraw + optional on-chain send**, referrals, rewards, **support tickets**, profile / KYC-lite
-- Admin desk (`/admin`): **platform analytics**, printable reports, treasury / payout pool + company hot-wallet address, users (**block/unblock** + edit withdrawal wallet), **support tickets**, packages/activations, deposit queue (tx hash + verify), withdrawal history (send status / retry), reward config + **daily reward job**, ranks, announcements CRUD, audit log
+- Member desk (`/dashboard`): wallets + ledger, **analytics / reports**, activate Pro (**booster tiers**), **flash loans**, **wallet-connect deposit**, **auto-approved withdraw + optional on-chain send**, referrals, rewards, **support tickets**, profile / KYC-lite
+- Admin desk (`/admin`): **platform analytics**, printable reports, treasury / payout pool + company hot-wallet address, users (**block/unblock** + edit withdrawal wallet), **support tickets**, packages/activations (**activate N packages** on behalf of a client), **flash-loan review + ledger**, deposit queue (tx hash + verify), withdrawal history (send status / retry), reward config + **daily reward job**, ranks, announcements CRUD, audit log
 - Lifetime business data in Prisma (users, wallets, ledger, packages, referrals, payouts, ranks, intents, treasury, announcements, support tickets, audit)
 
 **This is not a promise of profit.** Daily ~0.5%, **2× trading cap**, and **3× network cap** are a configured structure. Forex involves substantial risk of loss. On-chain sends move real USDT when keys are configured — treat the hot wallet as production funds.
@@ -108,10 +108,15 @@ Without a private key / RPC / USDT contract, skip steps 3–5. The desk stays un
 | Admin | admin@whealthgrid.com | Admin@12345 |
 | Demo member | demo@whealthgrid.com | Demo@12345 |
 | Demo downline | member@whealthgrid.com | Member@12345 |
+| Outstanding flash loan | loan@whealthgrid.com | Loan@12345 |
+| Ultra booster | booster@whealthgrid.com | Booster@12345 |
+| Recovered loan / cooling | recovered@whealthgrid.com | Recovered@12345 |
 
 Demo ships with an active **Pro** package, several weeks of **Mon–Fri trading credits** and network rewards (so charts are populated), a pending deposit, **auto-approved** withdrawals, extra downline desks, and a **company treasury** seeded at **$10,000** (minus demo payouts) so members can withdraw.
 
 Referral code on the demo desk: `WG-DEMO01`. Seed users have unique phones and a verified inbox so deposit/withdraw works immediately.
+
+`member@` ships with a **pending flash-loan application** ($800) for admin review. `loan@` has an **outstanding $500 loan** (Network **−$350** after a $150 recovery sample) and a loan-funded package with daily ROI paused. `booster@` holds an **Ultra** $200 package with two admin-granted whale directs ($30,000 + $25,000 = **$55,000** active direct volume → **5%/day**). `recovered@` has a fully recovered loan and an active **2-month cooling** window. Demo also has a second **admin-granted** $150 package so multi-package desks are visible.
 
 ## Forex ticker
 
@@ -147,8 +152,8 @@ Numbers and routing rules live in [`config/rewards.ts`](config/rewards.ts) and a
 
 | Book | Multiple | Basis | Wallet |
 | --- | --- | --- | --- |
-| Daily trading ROI | **2×** (`caps.tradingMultiple`, `maxReturnPct` 200) | Sum of ACTIVE + COMPLETED package principal | Trading |
-| Network rewards | **3×** (`caps.networkMultiple`, `networkCapPct` 300) | Same principal | Network |
+| Daily trading ROI | **2×** (`caps.tradingMultiple`, `maxReturnPct` 200) | Sum of ACTIVE + COMPLETED **paid** principal (SELF / ADMIN / recovered LOAN). Unpaid flash-loan packages are excluded so they cannot inflate Trading ROI. | Trading |
+| Network rewards | **3×** (`caps.networkMultiple`, `networkCapPct` 300) | All ACTIVE + COMPLETED principal **including unpaid LOAN**, so recovery credits can still book | Network |
 
 Progress bars on the member overview and package/rewards pages show earned vs each ceiling. When the 2× trading book is full, further daily credits are skipped and the package is marked **COMPLETED**.
 
@@ -171,11 +176,15 @@ npm run rewards:daily -- --date=2026-09-11
 
 Or **Admin desk → Reward config → Run daily rewards** (`POST /api/admin/rewards/run`).
 
-The job is idempotent (`RewardPayout.periodKey`, e.g. `DAILY:2026-09-12`). For each active package it:
+The job is idempotent (`RewardPayout.periodKey`, e.g. `DAILY:2026-09-12:<activationId>`). For each active package it:
 
-1. Credits **Mon–Fri** daily ROI to **Trading**, respecting the **2×** remaining cap.
-2. Credits **team-trading** percents of that day’s daily amount up the referral tree to **Network** (**3×** cap, any day).
-3. Credits **weekly loyalty** (`loyalty.weeklyPct`) to **Network** once per ISO week (**3×** cap, 24/7).
+1. **Skips daily ROI** on a package while its flash loan is outstanding, or before `roiStartsOn` (the next Asia/Dubai calendar day after full recovery).
+2. Credits **Mon–Fri** daily ROI to **Trading** at the live booster / regular rate, respecting the **2×** remaining cap.
+3. Credits **team-trading** percents of that day’s daily amount up the referral tree to **Network** (**3×** cap, any day).
+4. Credits **weekly loyalty** (`loyalty.weeklyPct`) to **Network** once per ISO week per package (**3×** cap, 24/7).
+5. **Auto-applies** every Network reward credit to any outstanding `FlashLoan.repaid`. When remaining principal hits 0 the loan is marked **RECOVERED**, `coolingUntil` is set to recovery + 2 months, and loan-funded packages get `roiStartsOn` = next Asia/Dubai day.
+
+Legacy seed keys (`DAILY:YYYY-MM-DD`, `LOYALTY:YYYY-Www`) are still treated as already paid so a re-run does not double-book historical demo days.
 
 Schedule it with cron if you want unattended runs, for example Monday–Friday after Dubai midnight:
 
@@ -183,10 +192,49 @@ Schedule it with cron if you want unattended runs, for example Monday–Friday a
 5 0 * * 1-5 cd /path/to/app && npm run rewards:daily
 ```
 
+## Flash loans
+
+Member path: `/dashboard/loans` → apply for any amount **≥ Pro minimum ($50)** → admin reviews on `/admin/loans` → approve any amount **between $50 and the request** (or reject) → member activates a **loan-funded package** for the approved amount. Amounts below $50 cannot fund Pro and are rejected at apply/approve so the book cannot get stuck.
+
+**Source of truth** is the `FlashLoan` row: `principal`, `repaid`, `status`. Remaining = `principal − repaid`. Approval also **debits Network available** by the approved amount (`allowNegative`), so the vault can show **−$500**. That negative balance is the liability mirror — Network rewards still credit the wallet (moving it toward zero) and increment `repaid`.
+
+| Rule | Behaviour |
+| --- | --- |
+| While outstanding | Daily ROI does **not** generate on the **loan-funded package(s)**. Other packages on the same desk still earn if they are not loan-funded. Unpaid loan principal does **not** enlarge the 2× trading basis (so a sibling SELF package cannot harvest extra Trading ROI). It **does** count toward the 3× network basis so DIRECT / TEAM / LOYALTY credits can book and advance `repaid`. Hitting 2× on paid packages does not complete the still-outstanding loan package. |
+| Recovery | Network reward types (`DIRECT`, `TEAM`, `RANK`, `LOYALTY`, `TURNOVER`) auto-apply to `repaid`. |
+| Fully recovered | `status = RECOVERED`, `recoveredAt` set, Network liability cleared by the credits. ROI on that package starts the **next Asia/Dubai calendar day** at regular **1%/day** toward **2×**. After 2× the member renews as today. |
+| Cooling | After the first loan is fully recovered, another loan **cannot be approved** until `recoveredAt + 2 months` (`coolingUntil`, Asia/Dubai calendar months). Members may still submit an application during cooling; ops cannot approve. |
+
+Withdrawals still require **non-negative** available cover, so a desk cannot withdraw a Network liability.
+
+## ROI boosters
+
+Configured in [`config/rewards.ts`](config/rewards.ts) → `boosters`. Member chooses a tier when activating **with own Trading funds** (`fundingSource = SELF`). Admin grants and loan-funded packages use **Regular (NONE)** at **1%/day**.
+
+**Active direct business** (re-read every daily job): sum of `PackageActivation.amount` where `status = ACTIVE` and the owner is a first-line referral (`User.referredById`). Completed / cancelled packages do not count. Volume must remain active continuously — if a direct’s package completes, the sponsor’s rate can drop the next trading day.
+
+| Tier | $0 | ≥ $10,000 | ≥ $25,000 | ≥ $50,000 | Cap |
+| --- | --- | --- | --- | --- | --- |
+| Regular (NONE) | 1% | 1% | 1% | 1% | 2× |
+| ROI Booster | 1% | 2% | 2% | 2% | 2× |
+| Super Booster | 1% | 2% | 4% | 4% | 2× |
+| Ultra Booster | 1% | 2% | 4% | 5% | 2× |
+
+Boosters never run on a package while its flash loan is unpaid.
+
+## Admin package activation
+
+From `/admin/packages` or a user detail page, ops can activate **N packages** (1–20) for any member.
+
+- Default **regular grant** (`fundingSource = ADMIN`): no Trading debit, **1%/day** toward **2×**, participates in the daily job immediately.
+- Optional **flash-loan funded** (single package): uses an unused approved loan, or creates and approves one for the entered amount (cooling / outstanding rules still apply).
+
+Multiple packages per user are allowed (self, loan, and admin). The 2× / 3× ceilings stay on **sum of ACTIVE + COMPLETED principal**.
+
 ## Reward structure (config)
 
 - **Pro** from **$50**
-- Illustrative daily **~0.5%**, trading ceiling **2× (200%)**, network ceiling **3× (300%)**
+- Regular / admin-grant daily **1%**, booster tiers up to **5%**, trading ceiling **2× (200%)**, network ceiling **3× (300%)**
 - Direct referral **7%** → Network wallet
 - Team trading **L1–L20** (declining schedule in config) → Network wallet
 - Ranks: **Elite 1–7**, **Director**, **Founder**
@@ -252,8 +300,11 @@ npm run rewards:daily -- --date=2026-09-11
 ```
 app/                 # routes + API (incl. /dashboard/reports, /admin/reports, /api/admin/rewards/run)
 components/          # marketing, desk, brand, charts, wallet connect (desk-scoped)
-config/rewards.ts    # package / rank / 2× 3× caps / wallet routing / timezone
+config/rewards.ts    # package / rank / 2× 3× caps / wallet routing / timezone / boosters / flash loan
 lib/rewards.ts       # cap + routing enforcement + daily job
+lib/flash-loans.ts   # apply / approve / recover / cooling
+lib/boosters.ts      # live active-direct volume → daily rate
+lib/packages.ts      # shared SELF / LOAN / ADMIN activation
 lib/analytics.ts     # Prisma aggregates for desk charts
 lib/clock.ts         # Asia/Dubai calendar helpers
 lib/withdraw.ts      # auto-approve + treasury cover check
